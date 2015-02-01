@@ -1,2 +1,2 @@
-# ko-router
-Simple Knockout router
+# Knockout Router
+

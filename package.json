@@ -1,0 +1,19 @@
+{
+  "name": "ko-router",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/router.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/W3Max/ko-router.git"
+  },
+  "author": "W3Max",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/W3Max/ko-router/issues"
+  },
+  "homepage": "https://github.com/W3Max/ko-router"
+}
