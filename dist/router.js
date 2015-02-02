@@ -7,6 +7,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
             self.$document = $(document);
 
+            //TODO: Créer une instance de byroads au lieu d'utiliser la static...
+
             koUtilities.registerComponent('router', {
                 isBower: true
             });
@@ -50,22 +52,39 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
             koUtilities.registerComponent(componentConfig.name, componentConfig);
+        };
 
-            var route = buildRoute(name, pageConfig, componentConfig);
+
+        //routeConfig
+        //priority
+        //pageName
+        //title
+        //params
+
+
+        Router.prototype.addRoute = function(pattern, routeConfig) {
+            var self = this;
+
+            //TODO: Valider que page exist else throw...
 
             //il pourrait y avoir 2 urls identiques - une requireAuthentication et l'autre pas...
-            if (_.any(self.routes,
-                    function(r) {
-                        return r.url == route.url && r.requireAuthentication == route.requireAuthentication;
-                    })) {
-                throw new Error('Router.registerPage - Duplicate url: ' + route.url);
+            // if (_.any(self.routes,
+            //         function(r) {
+            //             return r.url == route.url && r.requireAuthentication == route.requireAuthentication;
+            //         })) {
+            //     throw new Error('Router.registerPage - Duplicate url: ' + route.url);
+            // }
+
+            var priority;
+
+            if (routeConfig && routeConfig.priority) {
+                priority = routeConfig.priority;
             }
 
-            byroads.addRoute(route.url + ':?query:', function(requestParams) {
-                navigate(self, route.url, requestParams);
-            });
+            var route = byroads.addRoute(pattern, priority);
 
-            this.routes.push(route);
+            //add info to route. ex. component
+            updateByroadsRoute(route, routeConfig);
         };
 
         Router.prototype.changeHashSilently = function(destination) {
@@ -75,12 +94,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
         };
 
         //Cette méthode peut être overrided au besoin par le end user! (on est en javascript...)
-        Router.prototype.unknownRouteHandler = function() {
-            var self = this;
+        // Router.prototype.unknownRouteHandler = function() {
+        //     var self = this;
 
-            //TODO: Bon format d'url - ou ca prend le #/ ???
-            self.navigate('page-non-trouvee');
-        };
+        //     //TODO: Bon format d'url - ou ca prend le #/ ???
+        //     self.navigate('page-non-trouvee');
+        // };
 
         Router.prototype.navigate = function(url) {
             var self = this;
@@ -97,57 +116,77 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             //TODO: Utile?
             byroads.normalizeFn = byroads.NORM_AS_OBJECT;
 
-            crossroads.bypassed.add(function() {
-                self.unknownRouteHandler();
+            // crossroads.bypassed.add(function() {
+            //     self.unknownRouteHandler();
+            // });
+
+            hasher.initialized.add(function(newHash, oldHash) {
+                navigate(self, newHash, oldHash);
             });
 
-            hasher.initialized.add(function(newHash /*, oldHash*/ ) {
-                parseHash(self, newHash);
-            });
-
-            hasher.changed.add(function(newHash /*, oldHash*/ ) {
-                parseHash(self, newHash);
+            hasher.changed.add(function(newHash, oldHash) {
+                navigate(self, newHash, oldHash);
             });
         }
 
-        function navigate(self, url, queryParams) {
-
-            var filteredRoutes = _.filter(self.routes,
-                function(r) {
-                    return r.url === url.toLowerCase();
-                });
-
-            //TODO: Supporter signedIn!
-            var signedIn = false;
-
-            var route = filteredRoutes[0];
-
-            if (!route) {
+        function navigate(self, newHash, oldHash) {
+            if (byroads.getNumRoutes() === 0) {
                 throw "No route has been found. Did you add one yet?";
             }
 
-            if (filteredRoutes.length > 1) {
-                route = _.first(filteredRoutes,
-                    function(r) {
-                        return r.requireAuthentication === signedIn;
-                    });
+            var matchedRoutes = byroads.getMatchedRoutes(newHash, true);
+
+            //TODO: Supporter signedIn!
+            //var signedIn = false;
+
+            var acceptedRoute;
+
+            if (matchedRoutes.length > 0) {
+                for (var i = 0; i < matchedRoutes.length; i++) {
+                    var matchedRoute = matchedRoutes[i];
+
+                    if (matchedRoute.activator) {
+                        //TODO...
+                        //Activator could return 404, 401, etc... et doit-il pouvoir décidier si on continu a chercher une url dans les matchedRoutes ?
+                    } else {
+                        acceptedRoute = matchedRoute;
+                    }
+                }
             }
 
-            if (route.requireAuthentication && !signedIn) {
-                //todo: handle not authorized
-                throw new Error('Router.navigate - TODO: (FrameworkJS) not authorized');
+            if (acceptedRoute) {
+                self.currentRoute(acceptedRoute);
             } else {
-                route.params.queryParams = queryParams;
-                route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
-                route.params.request = queryParams["request_"];
-                route.params.queryString = queryParams["?query_"];
-
-                //todo: si la route à un "loader" (funciton qui retourne une promesse - nom a déterminer (ex. activate)), lancer l'inititalisation... ;-) (durandal activate...)
-                //afficher un loader jusqu'à la fin de l'activate
-                //ou pas... la page peut afficher un loader et s'auto-initaliser...
-
-                self.currentRoute(route);
+                //TODO: 404
+                //Y pourrait y vaoir un component de type page par défaut dans les projects et, 
+                //les gens peuvent le modifier, mais il doit toujours etre présent
+                //sur 404, on affiche cette page
             }
+
+            // if (!route) {
+            //     throw "No route has been found. Did you add one yet?";
+            // }
+
+            // if (filteredRoutes.length > 1) {
+            //     matchedRoutes = _.first(filteredRoutes,
+            //         function(r) {
+            //             return r.requireAuthentication === signedIn;
+            //         });
+            // }
+
+            // if (route.requireAuthentication && !signedIn) {
+            //     //todo: handle not authorized
+            //     throw new Error('Router.navigate - TODO: (FrameworkJS) not authorized');
+            // } else {
+            // route.params.queryParams = queryParams;
+            // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
+            // route.params.request = queryParams["request_"];
+            // route.params.queryString = queryParams["?query_"];
+
+            //todo: si la route à un "loader" (funciton qui retourne une promesse - nom a déterminer (ex. activate)), lancer l'inititalisation... ;-) (durandal activate...)
+            //afficher un loader jusqu'à la fin de l'activate
+            //ou pas... la page peut afficher un loader et s'auto-initaliser...
+            //}
         }
 
         function buildComponentConfigFromPageConfig(name, pageConfig) {
@@ -160,54 +199,40 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             };
         }
 
-        function buildRoute(name, pageConfig, componentConfig) {
-            var route = {
-                url: name,
-                params: {},
-                componentName: componentConfig.name,
-                name: name,
-                title: name,
-                excludedFromNav: false,
-                hideNav: false
-            };
+        function updateByroadsRoute(byroadsRoute, routeConfig) {
 
-            if (pageConfig.hasOwnProperty('url') &&
-                (typeof pageConfig.url === 'string' || pageConfig.url instanceof String)) {
-                route.url = pageConfig.url.toLowerCase();
+            byroadsRoute.routeParams = {}; //Not to be confused with url params extrated by byroads.js
+            byroadsRoute.pageName = byroadsRoute._pattern;
+            byroadsRoute.componentName = byroadsRoute._pattern + '-page';
+            byroadsRoute.title = byroadsRoute._pattern;
+            byroadsRoute.requireAuthentication = false;
+
+
+            if (routeConfig.hasOwnProperty('title') &&
+                (typeof routeConfig.title === 'string' || routeConfig.title instanceof String)) {
+                byroadsRoute.title = routeConfig.title;
             }
 
-            if (pageConfig.hasOwnProperty('title') &&
-                (typeof pageConfig.title === 'string' || pageConfig.title instanceof String)) {
-                route.title = pageConfig.title;
+            if (routeConfig.hasOwnProperty('params') &&
+                (typeof routeConfig.params === 'object' ||
+                    routeConfig.params instanceof Object)) {
+                byroadsRoute.routeParams = routeConfig.params;
             }
 
-            if (pageConfig.hasOwnProperty('params') &&
-                (typeof pageConfig.params === 'object' ||
-                    pageConfig.params instanceof Object)) {
-                route.params = pageConfig.params;
+            if (routeConfig.hasOwnProperty('pageName') &&
+                (typeof routeConfig.pageName === 'string' || routeConfig.pageName instanceof String)) {
+                byroadsRoute.pageName = routeConfig.pageName;
+                byroadsRoute.componentName = routeConfig.pageName + '-page';
             }
 
-            if (pageConfig.hasOwnProperty('requireAuthentication') &&
-                (typeof pageConfig.requireAuthentication === 'boolean' ||
-                    pageConfig.requireAuthentication instanceof Boolean)) {
-                route.requireAuthentication = pageConfig.requireAuthentication;
-            }
+            //TODO:
+            // if (routeConfig.hasOwnProperty('requireAuthentication') &&
+            //     (typeof routeConfig.requireAuthentication === 'boolean' ||
+            //         routeConfig.requireAuthentication instanceof Boolean)) {
+            //     route.requireAuthentication = routeConfig.requireAuthentication;
+            // }
 
-            if (pageConfig.hasOwnProperty('excludedFromNav') &&
-                (typeof pageConfig.excludedFromNav === 'boolean' ||
-                    pageConfig.excludedFromNav instanceof Boolean)) {
-                route.excludedFromNav = pageConfig.excludedFromNav;
-            }
-
-            if (pageConfig.hasOwnProperty('hideNav') &&
-                (typeof pageConfig.hideNav === 'boolean' ||
-                    pageConfig.hideNav instanceof Boolean)) {
-                route.hideNav = pageConfig.hideNav;
-            }
-
-            route.hash = '#/' + route.url;
-
-            return route;
+            return byroadsRoute;
         }
 
         //https://github.com/chrissrogers/jquery-deparam/blob/master/jquery-deparam.js
