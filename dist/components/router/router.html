@@ -1,3 +1,3 @@
 <!-- ko if: router.currentRoute -->
-<div data-bind="component: { name: router.currentRoute().componentName, params: router.currentRoute().params }"></div>
+<div data-bind="component: { name: router.currentRoute().route.componentName, params: router.currentRoute() }"></div>
 <!-- /ko -->
