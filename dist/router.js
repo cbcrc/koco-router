@@ -190,13 +190,18 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
         }
 
         function buildComponentConfigFromPageConfig(name, pageConfig) {
-            return {
+            var componentConfig = {
                 name: name + '-page',
-                htmlOnly: pageConfig.htmlOnly,
-                basePath: pageConfig.basePath,
-                isBower: pageConfig.isBower,
                 type: "page"
             };
+
+            if(pageConfig){
+                componentConfig.htmlOnly= pageConfig.htmlOnly;
+                componentConfig.basePath= pageConfig.basePath;
+                componentConfig.isBower= pageConfig.isBower;
+            }
+
+            return componentConfig;
         }
 
         function updateByroadsRoute(byroadsRoute, routeConfig) {
