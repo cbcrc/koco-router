@@ -1,5 +1,5 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'crossroads', 'hasher'],
-    function($, koUtilities, ko, _, crossroads, hasher) {
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher'],
+    function($, koUtilities, ko, _, byroads, hasher) {
         'use strict';
 
         function Router() {
@@ -10,8 +10,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'crossroads', 'has
             koUtilities.registerComponent('router', {
                 isBower: true
             });
-
-            self.routes = [];
 
             self.currentRoute = ko.observable(null);
 
@@ -63,7 +61,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'crossroads', 'has
                 throw new Error('Router.registerPage - Duplicate url: ' + route.url);
             }
 
-            crossroads.addRoute(route.url + ':?query:', function(requestParams) {
+            byroads.addRoute(route.url + ':?query:', function(requestParams) {
                 navigate(self, route.url, requestParams);
             });
 
@@ -94,9 +92,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'crossroads', 'has
             }
         };
 
+        //TODO:...
         function configureRouting(self) {
             //TODO: Utile?
-            crossroads.normalizeFn = crossroads.NORM_AS_OBJECT;
+            byroads.normalizeFn = byroads.NORM_AS_OBJECT;
 
             crossroads.bypassed.add(function() {
                 self.unknownRouteHandler();
@@ -149,13 +148,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'crossroads', 'has
 
                 self.currentRoute(route);
             }
-        }
-
-        function parseHash(self, newHash) {
-            //TODO..
-            //self.hideCurrentDialog();
-
-            crossroads.parse(newHash);
         }
 
         function buildComponentConfigFromPageConfig(name, pageConfig) {
