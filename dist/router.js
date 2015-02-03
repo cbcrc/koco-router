@@ -9,9 +9,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
-            //TODO: Ne pas utiliser koUtilities pour register
             koUtilities.registerComponent('router', {
-                basePath: 'bower_components/ko-router/dist/components/router/router'
+                basePath: 'bower_components/ko-router/dist/components/'
             });
 
             self.currentRoute = ko.observable(null);
@@ -25,6 +24,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
                 return '';
             });
+
+            self._pages = {};
 
 
             //TODO: ?
@@ -51,8 +52,21 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                 throw new Error('Router.registerPage - Argument missing exception: name');
             }
 
+            if (self.isRegisteredPage(name)) {
+                throw new Error('Router.registerPage - Duplicate page: ' + name);
+            }
+
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
-            koUtilities.registerComponent(componentConfig.name, componentConfig);
+
+            this._pages[name] = koUtilities.registerComponent(componentConfig.name, componentConfig);
+        };
+
+        Router.prototype.isRegisteredPage = function(name) {
+            return name in this._pages;
+        };
+
+        Router.prototype._getRegisteredPageConfigs = function(name) {
+            return this._pages[name];
         };
 
 
@@ -65,6 +79,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
         Router.prototype.addRoute = function(pattern, routeConfig) {
             var self = this;
+            routeConfig = routeConfig || {};
 
             //TODO: Valider que page exist else throw...
 
@@ -76,6 +91,44 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             //     throw new Error('Router.registerPage - Duplicate url: ' + route.url);
             // }
 
+            var componentName = pattern + '-page';
+            var params = {}; //Not to be confused with url params extrated by byroads.js
+            var pageName = pattern;
+            var title = pattern;
+            var withActivator = false;
+            //var requireAuthentication = false;
+
+
+            if (routeConfig.hasOwnProperty('title') &&
+                (typeof routeConfig.title === 'string' || routeConfig.title instanceof String)) {
+                title = routeConfig.title;
+            }
+
+            if (routeConfig.hasOwnProperty('params') &&
+                (typeof routeConfig.params === 'object' ||
+                    routeConfig.params instanceof Object)) {
+                params = routeConfig.params;
+            }
+
+            if (routeConfig.hasOwnProperty('pageName') &&
+                (typeof routeConfig.pageName === 'string' || routeConfig.pageName instanceof String)) {
+                pageName = routeConfig.pageName;
+                componentName = routeConfig.pageName + '-page';
+            }
+
+            if(routeConfig.hasOwnProperty('withActivator') &&  typeof routeConfig.withActivator === 'boolean'){
+                withActivator = routeConfig.withActivator;
+            }
+
+            if (!self.isRegisteredPage(pageName)) {
+                throw new Error('Router.addRoute - The page \'' + pageName + '\' is not registered. Please register the page before adding a route that refers to it.');
+            }
+
+            //At worst, the pattern will serve as title...
+            // if (!title || !routeConfig.activator) {
+            //     throw new Error('Router.addRoute - A default title or an activator must be provided when adding a route.');
+            // }
+
             var priority;
 
             if (routeConfig && routeConfig.priority) {
@@ -84,8 +137,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
             var route = byroads.addRoute(pattern, priority);
 
-            //add info to route. ex. component
-            updateByroadsRoute(route, routeConfig);
+            route.params = params;
+            route.componentName = componentName;
+            route.pageName = pageName;
+            route.title = title;
+            route.withActivator = withActivator;
         };
 
         Router.prototype.changeHashSilently = function(destination) {
@@ -131,38 +187,48 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
         }
 
         function navigate(self, newHash, oldHash) {
+            var dfd = new $.Deferred();
+
             if (byroads.getNumRoutes() === 0) {
-                throw "No route has been found. Did you add one yet?";
+                dfd.reject('No route has been added to the router yet.');
             }
 
             var matchedRoutes = byroads.getMatchedRoutes(newHash, true);
 
-            //TODO: Supporter signedIn!
+            //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques - même pattern exact)
+
             //var signedIn = false;
 
-            var acceptedRoute;
+
 
             if (matchedRoutes.length > 0) {
-                for (var i = 0; i < matchedRoutes.length; i++) {
-                    var matchedRoute = matchedRoutes[i];
+                var matchedRoute = matchedRoutes[0];
+                var navigateInnerPromise = navigateInner(self, matchedRoute.route);
 
-                    if (matchedRoute.activator) {
-                        //TODO...
-                        //Activator could return 404, 401, etc... et doit-il pouvoir décidier si on continu a chercher une url dans les matchedRoutes ?
-                    } else {
-                        acceptedRoute = matchedRoute;
-                    }
-                }
-            }
+                navigateInnerPromise
+                    .then(function(activationData) {
+                        matchedRoute.activationData = activationData;
+                        self.currentRoute(matchedRoute);
+                        dfd.resolve(matchedRoute);
+                    })
+                    .fail(function(reason) {
+                        //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
 
-            if (acceptedRoute) {
-                self.currentRoute(acceptedRoute);
+                        //TODO: 404
+                        dfd.reject(reason);
+                    });
+
+
             } else {
+                //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
+
                 //TODO: 404
-                //Y pourrait y vaoir un component de type page par défaut dans les projects et, 
-                //les gens peuvent le modifier, mais il doit toujours etre présent
-                //sur 404, on affiche cette page
+                dfd.reject( /*reason*/ );
             }
+
+
+
+
 
             // if (!route) {
             //     throw "No route has been found. Did you add one yet?";
@@ -188,57 +254,69 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             //afficher un loader jusqu'à la fin de l'activate
             //ou pas... la page peut afficher un loader et s'auto-initaliser...
             //}
+
+            return dfd.promise();
+        }
+
+        function navigateInner(self, matchedRoute) {
+            var dfd = new $.Deferred();
+
+            if (matchedRoute.withActivator) {
+                //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
+                //the methode activate return a promise
+
+                var registeredPageConfigs = self._getRegisteredPageConfigs(matchedRoute.pageName);
+
+                getWithRequire(registeredPageConfigs.require + '-activator', function(activator) {
+                    
+                    //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
+
+                    var activatePromise = activator.activate(matchedRoute);
+
+                    //activation data may have any number of properties but we require (maybe not require...) it to have pageTitle
+
+                    activatePromise
+                        .then(function(activationData) {
+                            dfd.resolve(activationData);
+                        })
+                        .fail(function(reason) {
+                            dfd.reject(reason);
+                        });
+                });
+            } else {
+                dfd.resolve(null);
+            }
+
+            return dfd.promise();
+        }
+
+        function getWithRequire(moduleName, callback) {
+            require([moduleName], function(a) {
+                if (a) {
+                    // dev mode -- one define per file = module
+                    callback(a);
+                } else {
+                    // optimized file -- 2nd request yields a Require module
+                    require([moduleName], function(x) {
+                        callback(x);
+                    });
+                }
+            });
         }
 
         function buildComponentConfigFromPageConfig(name, pageConfig) {
             var componentConfig = {
                 name: name + '-page',
-                type: "page"
+                type: 'page'
             };
 
-            if(pageConfig){
-                componentConfig.htmlOnly= pageConfig.htmlOnly;
-                componentConfig.basePath= pageConfig.basePath;
-                componentConfig.isBower= pageConfig.isBower;
+            if (pageConfig) {
+                componentConfig.htmlOnly = pageConfig.htmlOnly;
+                componentConfig.basePath = pageConfig.basePath;
+                componentConfig.isBower = pageConfig.isBower;
             }
 
             return componentConfig;
-        }
-
-        function updateByroadsRoute(byroadsRoute, routeConfig) {
-
-            byroadsRoute.routeParams = {}; //Not to be confused with url params extrated by byroads.js
-            byroadsRoute.pageName = byroadsRoute._pattern;
-            byroadsRoute.componentName = byroadsRoute._pattern + '-page';
-            byroadsRoute.title = byroadsRoute._pattern;
-            byroadsRoute.requireAuthentication = false;
-
-
-            if (routeConfig.hasOwnProperty('title') &&
-                (typeof routeConfig.title === 'string' || routeConfig.title instanceof String)) {
-                byroadsRoute.title = routeConfig.title;
-            }
-
-            if (routeConfig.hasOwnProperty('params') &&
-                (typeof routeConfig.params === 'object' ||
-                    routeConfig.params instanceof Object)) {
-                byroadsRoute.routeParams = routeConfig.params;
-            }
-
-            if (routeConfig.hasOwnProperty('pageName') &&
-                (typeof routeConfig.pageName === 'string' || routeConfig.pageName instanceof String)) {
-                byroadsRoute.pageName = routeConfig.pageName;
-                byroadsRoute.componentName = routeConfig.pageName + '-page';
-            }
-
-            //TODO:
-            // if (routeConfig.hasOwnProperty('requireAuthentication') &&
-            //     (typeof routeConfig.requireAuthentication === 'boolean' ||
-            //         routeConfig.requireAuthentication instanceof Boolean)) {
-            //     route.requireAuthentication = routeConfig.requireAuthentication;
-            // }
-
-            return byroadsRoute;
         }
 
         //https://github.com/chrissrogers/jquery-deparam/blob/master/jquery-deparam.js
