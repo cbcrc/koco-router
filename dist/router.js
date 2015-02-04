@@ -1,5 +1,7 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher'],
-    function($, koUtilities, ko, _, byroads, hasher) {
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher',
+        'bower_components/ko-router/dist/router-event'
+    ],
+    function($, koUtilities, ko, _, byroads, hasher, RouterEvent) {
         'use strict';
 
         function Router() {
@@ -26,6 +28,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             });
 
             self._pages = {};
+
+            self.navigating = new RouterEvent();
 
 
             //TODO: ?
@@ -116,7 +120,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                 componentName = routeConfig.pageName + '-page';
             }
 
-            if(routeConfig.hasOwnProperty('withActivator') &&  typeof routeConfig.withActivator === 'boolean'){
+            if (routeConfig.hasOwnProperty('withActivator') && typeof routeConfig.withActivator === 'boolean') {
                 withActivator = routeConfig.withActivator;
             }
 
@@ -161,7 +165,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
         Router.prototype.navigate = function(url) {
             var self = this;
 
-            if (url == hasher.getHash().toLowerCase()) { //reload
+            if (url == window.location.hash.toLowerCase()) { //reload
                 navigate(self, url);
             } else {
                 hasher.setHash(url);
@@ -191,6 +195,18 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
             if (byroads.getNumRoutes() === 0) {
                 dfd.reject('No route has been added to the router yet.');
+                return dfd.promise();
+            }
+
+            if (!self.resetingUrl && !self.navigating.canRoute()) {
+                self.resetingUrl = true;
+                hasher.replaceHash(self.lastUrl);
+                dfd.reject('TODO: raison...');
+                return dfd.promise();
+            } else if (self.resetingUrl) {
+                self.resetingUrl = false;
+                dfd.reject('TODO: raison...');
+                return dfd.promise();
             }
 
             var matchedRoutes = byroads.getMatchedRoutes(newHash, true);
@@ -209,6 +225,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                     .then(function(activationData) {
                         matchedRoute.activationData = activationData;
                         self.currentRoute(matchedRoute);
+                        self.lastUrl = window.location.hash;
                         dfd.resolve(matchedRoute);
                     })
                     .fail(function(reason) {
@@ -224,6 +241,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
 
                 //TODO: 404
                 dfd.reject( /*reason*/ );
+
             }
 
 
@@ -268,7 +286,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                 var registeredPageConfigs = self._getRegisteredPageConfigs(matchedRoute.pageName);
 
                 getWithRequire(registeredPageConfigs.require + '-activator', function(activator) {
-                    
+
                     //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
 
                     var activatePromise = activator.activate(matchedRoute);
