@@ -165,7 +165,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
         Router.prototype.navigate = function(url) {
             var self = this;
 
-            if (url == window.location.hash.toLowerCase()) { //reload
+            if (url === self.currentRoute().url) { //reload
                 navigate(self, url);
             } else {
                 hasher.setHash(url);
@@ -224,6 +224,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                 navigateInnerPromise
                     .then(function(activationData) {
                         matchedRoute.activationData = activationData;
+                        matchedRoute.url = newHash;
                         self.currentRoute(matchedRoute);
                         self.lastUrl = window.location.hash;
                         dfd.resolve(matchedRoute);
