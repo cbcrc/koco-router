@@ -176,8 +176,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         }
 
-        Router.prototype._navigate = function(newHash, oldHash) {
+        Router.prototype._navigate = function(newUrl, oldUrl) {
             var self = this;
+
+            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+            newUrl = newUrl.replace(/^\/|\/$/g, '');
+
             var dfd = new $.Deferred();
 
             if (byroads.getNumRoutes() === 0) {
@@ -197,7 +201,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 return dfd.promise();
             }
 
-            var matchedRoutes = byroads.getMatchedRoutes(newHash, true);
+            var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
 
             //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques - même pattern exact)
 
@@ -210,9 +214,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 navigateInnerPromise
                     .then(function(activationData) {
                         matchedRoute.activationData = activationData;
-                        matchedRoute.url = newHash;
+                        matchedRoute.url = newUrl;
                         self.currentRoute(matchedRoute);
-                        self.lastUrl = window.location.hash;
+                        self.lastUrl = newUrl;
                         dfd.resolve(matchedRoute);
                     })
                     .fail(function(reason) {
