@@ -25,23 +25,16 @@ define(['jquery'],
 
 
             $(document).on('click', 'a, area', function(e) {
-                var href = $(this).attr('href');
+                var url = $(this).attr('href');
 
                 //TODO: permettre un regex (ou autre) en config pour savoir si c'est un lien interne
                 //car avec ça les sous-domaines vont etre exclus
                 //ce qui ne doit pas nécessairement etre le cas!
-                var isRelativeUrl = href.indexOf(':') === -1;
-                var isSameDomain = href.indexOf(document.domain) > -1;
+                var isRelativeUrl = url.indexOf(':') === -1;
+                var isSameDomain = url.indexOf(document.domain) > -1;
 
                 if (isSameDomain || isRelativeUrl) {
-
-                    if (isRelativeUrl) {
-                        //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-                        href = href.replace(/^\/|\/$/g, '');
-                        href = '/' + href;
-                    }
-
-                    window.history.pushState({}, '', href);
+                    window.history.pushState({}, '', cleanUrl(url));
                     self.router._navigate(getRelativeUrlFromLocation());
 
                     e.preventDefault();
@@ -54,25 +47,37 @@ define(['jquery'],
         RouterStatePush.prototype.setUrlSilently = function(url) {
             var self = this;
 
-            window.history.pushState({}, '', url);
+            window.history.pushState({}, '', cleanUrl(url));
         };
 
         RouterStatePush.prototype.setUrl = function(url) {
             var self = this;
 
-            window.history.pushState({}, '', url);
+            window.history.pushState({}, '', cleanUrl(url));
             self.router._navigate(getRelativeUrlFromLocation());
         };
 
         RouterStatePush.prototype.setUrlWithoutGeneratingNewHistoryRecord = function(url) {
             var self = this;
 
-            window.history.pushState({}, '', url);
+            window.history.replaceState({}, '',  cleanUrl(url));
             self.router._navigate(getRelativeUrlFromLocation());
         };
 
         function getRelativeUrlFromLocation() {
             return window.location.pathname + window.location.search + window.location.hash;
+        }
+
+        function cleanUrl(url) {
+            var isRelativeUrl = url.indexOf(':') === -1;
+
+            if (isRelativeUrl) {
+                //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+                url = url.replace(/^\/|\/$/g, '');
+                url = '/' + url;
+            }
+
+            return url;
         }
 
         return RouterStatePush;
