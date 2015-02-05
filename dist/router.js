@@ -1,13 +1,11 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher',
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state',
         'bower_components/ko-router/dist/router-event'
     ],
-    function($, koUtilities, ko, _, byroads, hasher, RouterEvent) {
+    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent) {
         'use strict';
 
         function Router() {
             var self = this;
-
-            self.$document = $(document);
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
@@ -41,12 +39,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             // });
 
             configureRouting(self);
+
+            self.routerState = new RouterState(self);
         }
 
         Router.prototype.init = function( /*config*/ ) {
             var self = this;
 
-            hasher.init();
+            self.routerState.init();
         };
 
         Router.prototype.registerPage = function(name, pageConfig) {
@@ -148,10 +148,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             route.withActivator = withActivator;
         };
 
-        Router.prototype.changeHashSilently = function(destination) {
-            hasher.changed.active = false;
-            hasher.setHash(destination);
-            hasher.changed.active = true;
+        Router.prototype.setUrlSilently = function(url) {
+            self.routerState.setUrlSilently(url);
         };
 
         //Cette méthode peut être overrided au besoin par le end user! (on est en javascript...)
@@ -166,31 +164,20 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             var self = this;
 
             if (url === self.currentRoute().url) { //reload
-                navigate(self, url);
+                self._navigate(self, url);
             } else {
-                hasher.setHash(url);
+                self.routerState.setUrl(url);
             }
         };
 
-        //TODO:...
         function configureRouting(self) {
             //TODO: Utile?
             byroads.normalizeFn = byroads.NORM_AS_OBJECT;
 
-            // crossroads.bypassed.add(function() {
-            //     self.unknownRouteHandler();
-            // });
-
-            hasher.initialized.add(function(newHash, oldHash) {
-                navigate(self, newHash, oldHash);
-            });
-
-            hasher.changed.add(function(newHash, oldHash) {
-                navigate(self, newHash, oldHash);
-            });
         }
 
-        function navigate(self, newHash, oldHash) {
+        Router.prototype._navigate = function(newHash, oldHash) {
+            var self = this;
             var dfd = new $.Deferred();
 
             if (byroads.getNumRoutes() === 0) {
@@ -198,9 +185,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
                 return dfd.promise();
             }
 
+            //TODO: Envoyer ça dans router-state-hash d'une maniere ou d'une autre... c'est propre au hash!
             if (!self.resetingUrl && !self.navigating.canRoute()) {
                 self.resetingUrl = true;
-                hasher.replaceHash(self.lastUrl);
+                self.routerState.setUrlWithoutGeneratingNewHistoryRecord(self.lastUrl);
                 dfd.reject('TODO: raison...');
                 return dfd.promise();
             } else if (self.resetingUrl) {
@@ -214,8 +202,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques - même pattern exact)
 
             //var signedIn = false;
-
-
 
             if (matchedRoutes.length > 0) {
                 var matchedRoute = matchedRoutes[0];
@@ -275,7 +261,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'hasher
             //}
 
             return dfd.promise();
-        }
+        };
 
         function navigateInner(self, matchedRoute) {
             var dfd = new $.Deferred();
