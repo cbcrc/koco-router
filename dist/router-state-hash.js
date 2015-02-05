@@ -9,6 +9,8 @@ define(['hasher'],
         };
 
         RouterStateHash.prototype.init = function() {
+            var self = this;
+
             hasher.initialized.add(function(newHash, oldHash) {
                 self.router._navigate(newHash, oldHash);
             });
@@ -16,6 +18,8 @@ define(['hasher'],
             hasher.changed.add(function(newHash, oldHash) {
                 self.router._navigate(newHash, oldHash);
             });
+
+            hasher.init();
         };
 
         RouterStateHash.prototype.setUrlSilently = function(url) {
@@ -24,7 +28,7 @@ define(['hasher'],
             hasher.changed.active = true;
         };
 
-         RouterStateHash.prototype.setUrl = function(url) {
+        RouterStateHash.prototype.setUrl = function(url) {
             hasher.setHash(url);
         };
 
