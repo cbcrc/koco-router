@@ -153,12 +153,13 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         };
 
         //Cette méthode peut être overrided au besoin par le end user! (on est en javascript...)
-        // Router.prototype.unknownRouteHandler = function() {
-        //     var self = this;
+        Router.prototype.unknownRouteHandler = function() {
+            var self = this;
 
-        //     //TODO: Bon format d'url - ou ca prend le #/ ???
-        //     self.navigate('page-non-trouvee');
-        // };
+            //TODO: Bon format d'url - ou ca prend le #/ ???
+            //self.navigate('page-non-trouvee');
+            alert('404 - Please override the router.unknownRouteHandler function to handle unknown routes.');
+        };
 
         Router.prototype.navigate = function(url) {
             var self = this;
@@ -189,10 +190,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 return dfd.promise();
             }
 
-            //TODO: Envoyer ça dans router-state-hash d'une maniere ou d'une autre... c'est propre au hash!
+            //TODO: Envoyer ça dans router-state?!
             if (!self.resetingUrl && !self.navigating.canRoute()) {
-                self.resetingUrl = true;
-                self.routerState.setUrlWithoutGeneratingNewHistoryRecord(self.lastUrl);
+                resetUrl(self);
                 dfd.reject('TODO: raison...');
                 return dfd.promise();
             } else if (self.resetingUrl) {
@@ -203,8 +203,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
 
-            //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques - même pattern exact)
-
+            //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques
+            //même pattern exact - on filter sur route.authenticationRequired)
             //var signedIn = false;
 
             if (matchedRoutes.length > 0) {
@@ -219,53 +219,40 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         self.lastUrl = newUrl;
                         dfd.resolve(matchedRoute);
                     })
-                    .fail(function(reason) {
-                        //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
-
-                        //TODO: 404
-                        dfd.reject(reason);
+                    .fail(function(activationData) {
+                        matchedRoute.activationData = activationData;
+                        self.unknownRouteHandler(matchedRoute);
+                        dfd.reject(/*, reason*/);
                     });
 
 
             } else {
                 //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
 
-                //TODO: 404
+                resetUrl(self);
+                self.unknownRouteHandler( /*, reason*/ );
                 dfd.reject( /*reason*/ );
 
             }
 
 
-
-
-
-            // if (!route) {
-            //     throw "No route has been found. Did you add one yet?";
-            // }
-
-            // if (filteredRoutes.length > 1) {
-            //     matchedRoutes = _.first(filteredRoutes,
-            //         function(r) {
-            //             return r.requireAuthentication === signedIn;
-            //         });
-            // }
-
-            // if (route.requireAuthentication && !signedIn) {
-            //     //todo: handle not authorized
-            //     throw new Error('Router.navigate - TODO: (FrameworkJS) not authorized');
-            // } else {
+            //TODO: On veut toujours faire ça?
             // route.params.queryParams = queryParams;
             // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
             // route.params.request = queryParams["request_"];
             // route.params.queryString = queryParams["?query_"];
 
-            //todo: si la route à un "loader" (funciton qui retourne une promesse - nom a déterminer (ex. activate)), lancer l'inititalisation... ;-) (durandal activate...)
-            //afficher un loader jusqu'à la fin de l'activate
-            //ou pas... la page peut afficher un loader et s'auto-initaliser...
-            //}
-
             return dfd.promise();
         };
+
+        function resetUrl(self) {
+            if (self.resetingUrl) {
+                throw new Error('Already reseting url');
+            } else {
+                self.resetingUrl = true;
+                self.routerState.setUrlWithoutGeneratingNewHistoryRecord(self.lastUrl);
+            }
+        }
 
         function navigateInner(self, matchedRoute) {
             var dfd = new $.Deferred();
@@ -329,98 +316,101 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         }
 
         //https://github.com/chrissrogers/jquery-deparam/blob/master/jquery-deparam.js
-        function chrissRogersJQqueryDeparam(params, coerce) {
-            var obj = {},
-                coerce_types = {
-                    'true': !0,
-                    'false': !1,
-                    'null': null
-                };
+        //TODO: On ne sert plus de cette fonction actuellement dans le router...
+        //NE devrait peut-être pas faire partie du core... 
+        //pourrait plus faire partie d'une livrairie utilitiaire
+        // function chrissRogersJQqueryDeparam(params, coerce) {
+        //     var obj = {},
+        //         coerce_types = {
+        //             'true': !0,
+        //             'false': !1,
+        //             'null': null
+        //         };
 
-            if (params) {
-                // Iterate over all name=value pairs.
-                $.each(params.replace(/\+/g, ' ').split('&'), function(j, v) {
-                    var param = v.split('='),
-                        key = decodeURIComponent(param[0]),
-                        val,
-                        cur = obj,
-                        i = 0,
-                        // If key is more complex than 'foo', like 'a[]' or 'a[b][c]', split it
-                        // into its component parts.
-                        keys = key.split(']['),
-                        keys_last = keys.length - 1;
+        //     if (params) {
+        //         // Iterate over all name=value pairs.
+        //         $.each(params.replace(/\+/g, ' ').split('&'), function(j, v) {
+        //             var param = v.split('='),
+        //                 key = decodeURIComponent(param[0]),
+        //                 val,
+        //                 cur = obj,
+        //                 i = 0,
+        //                 // If key is more complex than 'foo', like 'a[]' or 'a[b][c]', split it
+        //                 // into its component parts.
+        //                 keys = key.split(']['),
+        //                 keys_last = keys.length - 1;
 
-                    // If the first keys part contains [ and the last ends with ], then []
-                    // are correctly balanced.
-                    if (/\[/.test(keys[0]) && /\]$/.test(keys[keys_last])) {
-                        // Remove the trailing ] from the last keys part.
-                        keys[keys_last] = keys[keys_last].replace(/\]$/, '');
+        //             // If the first keys part contains [ and the last ends with ], then []
+        //             // are correctly balanced.
+        //             if (/\[/.test(keys[0]) && /\]$/.test(keys[keys_last])) {
+        //                 // Remove the trailing ] from the last keys part.
+        //                 keys[keys_last] = keys[keys_last].replace(/\]$/, '');
 
-                        // Split first keys part into two parts on the [ and add them back onto
-                        // the beginning of the keys array.
-                        keys = keys.shift().split('[').concat(keys);
+        //                 // Split first keys part into two parts on the [ and add them back onto
+        //                 // the beginning of the keys array.
+        //                 keys = keys.shift().split('[').concat(keys);
 
-                        keys_last = keys.length - 1;
-                    } else {
-                        // Basic 'foo' style key.
-                        keys_last = 0;
-                    }
+        //                 keys_last = keys.length - 1;
+        //             } else {
+        //                 // Basic 'foo' style key.
+        //                 keys_last = 0;
+        //             }
 
-                    // Are we dealing with a name=value pair, or just a name?
-                    if (param.length === 2) {
-                        val = decodeURIComponent(param[1]);
+        //             // Are we dealing with a name=value pair, or just a name?
+        //             if (param.length === 2) {
+        //                 val = decodeURIComponent(param[1]);
 
-                        // Coerce values.
-                        if (coerce) {
-                            val = val && !isNaN(val) ? +val // number
-                                : val === 'undefined' ? undefined // undefined
-                                : coerce_types[val] !== undefined ? coerce_types[val] // true, false, null
-                                : val; // string
-                        }
+        //                 // Coerce values.
+        //                 if (coerce) {
+        //                     val = val && !isNaN(val) ? +val // number
+        //                         : val === 'undefined' ? undefined // undefined
+        //                         : coerce_types[val] !== undefined ? coerce_types[val] // true, false, null
+        //                         : val; // string
+        //                 }
 
-                        if (keys_last) {
-                            // Complex key, build deep object structure based on a few rules:
-                            // * The 'cur' pointer starts at the object top-level.
-                            // * [] = array push (n is set to array length), [n] = array if n is 
-                            //   numeric, otherwise object.
-                            // * If at the last keys part, set the value.
-                            // * For each keys part, if the current level is undefined create an
-                            //   object or array based on the type of the next keys part.
-                            // * Move the 'cur' pointer to the next level.
-                            // * Rinse & repeat.
-                            for (; i <= keys_last; i++) {
-                                key = keys[i] === '' ? cur.length : keys[i];
-                                cur = cur[key] = i < keys_last ? cur[key] || (keys[i + 1] && isNaN(keys[i + 1]) ? {} : []) : val;
-                            }
+        //                 if (keys_last) {
+        //                     // Complex key, build deep object structure based on a few rules:
+        //                     // * The 'cur' pointer starts at the object top-level.
+        //                     // * [] = array push (n is set to array length), [n] = array if n is 
+        //                     //   numeric, otherwise object.
+        //                     // * If at the last keys part, set the value.
+        //                     // * For each keys part, if the current level is undefined create an
+        //                     //   object or array based on the type of the next keys part.
+        //                     // * Move the 'cur' pointer to the next level.
+        //                     // * Rinse & repeat.
+        //                     for (; i <= keys_last; i++) {
+        //                         key = keys[i] === '' ? cur.length : keys[i];
+        //                         cur = cur[key] = i < keys_last ? cur[key] || (keys[i + 1] && isNaN(keys[i + 1]) ? {} : []) : val;
+        //                     }
 
-                        } else {
-                            // Simple key, even simpler rules, since only scalars and shallow
-                            // arrays are allowed.
+        //                 } else {
+        //                     // Simple key, even simpler rules, since only scalars and shallow
+        //                     // arrays are allowed.
 
-                            if ($.isArray(obj[key])) {
-                                // val is already an array, so push on the next value.
-                                obj[key].push(val);
+        //                     if ($.isArray(obj[key])) {
+        //                         // val is already an array, so push on the next value.
+        //                         obj[key].push(val);
 
-                            } else if (obj[key] !== undefined) {
-                                // val isn't an array, but since a second value has been specified,
-                                // convert val into an array.
-                                obj[key] = [obj[key], val];
+        //                     } else if (obj[key] !== undefined) {
+        //                         // val isn't an array, but since a second value has been specified,
+        //                         // convert val into an array.
+        //                         obj[key] = [obj[key], val];
 
-                            } else {
-                                // val is a scalar.
-                                obj[key] = val;
-                            }
-                        }
+        //                     } else {
+        //                         // val is a scalar.
+        //                         obj[key] = val;
+        //                     }
+        //                 }
 
-                    } else if (key) {
-                        // No value was defined, so set something meaningful.
-                        obj[key] = coerce ? undefined : '';
-                    }
-                });
-            }
+        //             } else if (key) {
+        //                 // No value was defined, so set something meaningful.
+        //                 obj[key] = coerce ? undefined : '';
+        //             }
+        //         });
+        //     }
 
-            return obj;
-        }
+        //     return obj;
+        // }
 
 
         return new Router();
