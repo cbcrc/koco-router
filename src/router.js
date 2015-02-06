@@ -1,7 +1,5 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state',
-        'bower_components/ko-router/dist/router-event'
-    ],
-    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent) {
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', 'router-event', 'configs'],
+    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent, configs) {
         'use strict';
 
         function Router() {
@@ -9,8 +7,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
+            var basePath = 'bower_components/ko-router/src';
+
+            if (configs.koRouter && configs.koRouter.basePath) {
+                basePath = configs.koRouter.basePath;
+            }
+
             koUtilities.registerComponent('router', {
-                basePath: 'bower_components/ko-router/dist'
+                basePath: basePath
             });
 
             self.currentRoute = ko.observable(null);
@@ -40,14 +44,19 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             configureRouting(self);
 
+            self.settings = settings || {
+                basePath: 'bower_components/ko-router/src'
+            };
+
             self.routerState = new RouterState(self);
         }
 
-        Router.prototype.init = function( /*config*/ ) {
+        Router.prototype.init = function() {
             var self = this;
 
             self.routerState.init();
         };
+
 
         Router.prototype.registerPage = function(name, pageConfig) {
             var self = this;
@@ -222,7 +231,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     .fail(function(activationData) {
                         matchedRoute.activationData = activationData;
                         self.unknownRouteHandler(matchedRoute);
-                        dfd.reject(/*, reason*/);
+                        dfd.reject( /*, reason*/ );
                     });
 
 
