@@ -44,10 +44,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             configureRouting(self);
 
-            self.settings = settings || {
-                basePath: 'bower_components/ko-router/src'
-            };
-
             self.routerState = new RouterState(self);
         }
 
