@@ -262,6 +262,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     pageTitle = matchedRoute.activationData.pageTitle;
                 }
 
+                matchedRoute.pageTitle = pageTitle; ///todo: iiii... pas ici svp!
                 self.$document[0].title = pageTitle;
             }
         };
