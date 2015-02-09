@@ -50,9 +50,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         Router.prototype.init = function() {
             var self = this;
 
+            self.$document = $(document);
+
             self.routerState.init();
         };
-
 
         Router.prototype.registerPage = function(name, pageConfig) {
             var self = this;
@@ -222,6 +223,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         matchedRoute.url = newUrl;
                         self.currentRoute(matchedRoute);
                         self.lastUrl = newUrl;
+                        self._setPageTitle(matchedRoute);
                         dfd.resolve(matchedRoute);
                     })
                     .fail(function(activationData) {
@@ -248,6 +250,20 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             // route.params.queryString = queryParams["?query_"];
 
             return dfd.promise();
+        };
+
+        Router.prototype._setPageTitle = function(matchedRoute) {
+            var self = this;
+
+            if (matchedRoute) {
+                var pageTitle = matchedRoute.route.title; /*TODO: rename pageTitle?*/
+
+                if (matchedRoute.activationData && matchedRoute.activationData.pageTitle) {
+                    pageTitle = matchedRoute.activationData.pageTitle;
+                }
+
+                self.$document[0].title = pageTitle;
+            }
         };
 
         function resetUrl(self) {
