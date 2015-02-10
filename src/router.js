@@ -256,13 +256,15 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var self = this;
 
             if (matchedRoute) {
-                var pageTitle = matchedRoute.route.title; /*TODO: rename pageTitle?*/
+                //todo: iiii... pas ici svp!
+                //CQRS..
+                matchedRoute.pageTitle = matchedRoute.route.title; /*TODO: rename pageTitle?*/
 
                 if (matchedRoute.activationData && matchedRoute.activationData.pageTitle) {
-                    pageTitle = matchedRoute.activationData.pageTitle;
+                    matchedRoute.pageTitle = matchedRoute.activationData.pageTitle;
                 }
-
-                self.$document[0].title = pageTitle;
+                
+                self.$document[0].title = matchedRoute.pageTitle;
             }
         };
 
