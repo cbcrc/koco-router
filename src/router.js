@@ -1,5 +1,5 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', 'router-event', 'configs'],
-    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent, configs) {
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', 'router-event'],
+    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent) {
         'use strict';
 
         function Router() {
@@ -7,14 +7,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
-            var basePath = 'bower_components/knockout-router/src';
-
-            if (configs.koRouter && configs.koRouter.basePath) {
-                basePath = configs.koRouter.basePath;
-            }
-
             koUtilities.registerComponent('router', {
-                basePath: basePath
+                basePath: 'bower_components/knockout-router/src'
             });
 
             self.currentRoute = ko.observable(null);
