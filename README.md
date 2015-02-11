@@ -2,6 +2,18 @@
 
 Knockout router is build around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL.
 
+## Table of content
+
+- [Installation](#installation)
+- [Uages](#usages)
+- [Registering a page](#registering-a-page)
+- [Adding a route](#adding-a-route)
+- [Creating a page component](#creating-a-page-component)
+    - [JavaScript UI handler](#javascript-ui-handler)
+    - [HTML presentation](#html-presentation)
+    - [The activator contract](#the-activator-contract)
+- [Navigating event](#navigating-event)
+
 ## Installation
 
     bower install ko-router
