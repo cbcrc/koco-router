@@ -2,7 +2,7 @@
 
 Knockout router is build around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL.
 
-## Table of content
+## Table of contents
 
 - [Installation](#installation)
 - [Uages](#usages)
@@ -149,7 +149,7 @@ Sometimes, you may not want to display a page right away when changing route as 
 
 #### The contract
 * There must be an `activate` function.
-* The `activate` function has to return a `jQuery Deferred`.
+* The `activate` function has to return a `jQuery promise`.
 * Loading and screen transtions have to be handled by the callee.
 * Rejected deferred will cause the router to stop operation and prevent the page component to be shown while falling back to the `unknownRouteHandler`.
 
