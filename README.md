@@ -12,7 +12,7 @@ In your startup file, we need to do a number of things in order to fully initial
 
 ### startup.js
 
-    define(['knockout', 'router'], 
+    define(['knockout', 'router'],
         function(ko, router) {
             'use strict';
 
@@ -51,17 +51,17 @@ In your startup file, we need to do a number of things in order to fully initial
         </body>
     </html>
 
-### Registering a page
+## Registering a page
 
 To register a page, you have to use the `registerPage()` function.
 
     registerPage(name, options)
 
-### name
+### `name` parameter
 
 The name of the knockout component being added.
 
-### options
+### `options` parameter
 
 The options to be used when creating the page.
 
@@ -69,6 +69,27 @@ The options to be used when creating the page.
         isBower: boolean    // defines if the component comes from bower, a default bower path will be used.
         basePath: string    // the base path to be use to find the component. It has to be the root of the default files (see below).
         htmlOnly: boolean   // when creating a page, it is possible that there would be no JavaScript linked to this page, it will assume so and load the page using the naming convention (see below).
+    }
+
+## Adding a route
+
+Route matching is mainly handled by the [byroads.js](https://github.com/W3Max/byroads.js) project.
+
+    addRoute(pattern, routeConfig)
+    
+### `pattern` parameter
+
+The regex pattern to be matched against when a new URL is detected.
+
+### `routeConfig` parameter
+
+The configuration to be used when creating the route.
+
+    {
+        title: string           // will change the browser title to this value upon routing.
+        params: object          // parameters to be passed to the page component when routing. Useful when your page has dynamic content driven by parameters.
+        pageName: string        // the component name used as the registerPage() name parameter.
+        withActivator: boolean  // specifies whether or not the page is using an activator object.
     }
 
 ## Creating a page component
@@ -110,6 +131,74 @@ When using a JavaScript UI handler, the name of this file has to be defined by y
         <p>This is a test page.</p>
     </div>
 
-### The activator concept
+### The activator contract
 
 Sometimes, you may not want to display a page right away when changing route as you could be loading data synchronously before displaying it. To do so, you need to implement the `activator contract`.
+
+#### The contract
+* There must be an `activate` function.
+* The `activate` function has to return a `jQuery Deferred`.
+* Loading and screen transtions have to be handled by the callee.
+* Rejected deferred will cause the router to stop operation and prevent the page component to be shown while falling back to the `unknownRouteHandler`.
+
+Here's the basic structure of an activator:
+
+    define(['jquery'],
+        function($) {
+            'use strict';
+    
+            var Activator = function() {
+            };
+    
+            // The activate method is required to return a promise for the router.
+            Activator.prototype.activate = function() {
+                var deferred = new $.Deferred();
+    
+                // Here would be a good place to display a loading message.
+                
+                // Do something asynchronously.
+                setTimeout(function() {
+    
+                    // Pass the loaded data to the component.
+                    deferred.resolve({
+                        message: 'Loaded some data...'
+                    });
+                    
+                    // Or you could reject the operation.
+                    deferred.reject();
+    
+                }, 2000);
+    
+                return deferred.promise();
+            };
+    
+            return new Activator();
+        });
+        
+## Navigating event
+
+When navigating to a new URL, the router will raise a `navigating` event.
+
+### Subscribing
+
+An event may be subribed to when the router is navigating to a new URL:
+
+    router.navigating.subscribe(handler, context)
+    
+#### `handler` parameter
+
+This is the function that will be called every time the router is navigating. Returning false will cancel navigation.
+
+#### `context` parameter
+
+This parameter is useful to pass the `this` object when calling the handler back.
+
+### Unsubscribing
+
+You may unsubscribe this way:
+
+    router.navigating.unsubscribe(handler)
+    
+#### `handler` parameter
+
+The _exact_ handler passed earlier when subscribing. You may want to avoid creating inline function.
