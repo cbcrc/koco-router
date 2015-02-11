@@ -7,7 +7,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
-            var basePath = 'bower_components/ko-router/src';
+            var basePath = 'bower_components/knockout-router/src';
 
             if (configs.koRouter && configs.koRouter.basePath) {
                 basePath = configs.koRouter.basePath;

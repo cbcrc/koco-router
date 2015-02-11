@@ -1,5 +1,5 @@
 {
-  "name": "ko-router",
+  "name": "knockout-router",
   "version": "0.1.0",
   "description": "",
   "main": "dist/router.js",
@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/W3Max/ko-router.git"
+    "url": "https://github.com/W3Max/knockout-router.git"
   },
   "author": "W3Max",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/W3Max/ko-router/issues"
+    "url": "https://github.com/W3Max/knockout-router/issues"
   },
-  "homepage": "https://github.com/W3Max/ko-router"
+  "homepage": "https://github.com/W3Max/knockout-router"
 }
