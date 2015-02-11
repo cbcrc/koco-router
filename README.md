@@ -177,8 +177,10 @@ Here's the basic structure of an activator:
                     });
                     
                     // Or you could reject the operation.
-                    deferred.reject();
-    
+                    // deferred.reject();
+
+                    // Here would be a good place to hide loading message.
+
                 }, 2000);
     
                 return deferred.promise();
