@@ -24,44 +24,48 @@ In your startup file, we need to do a number of things in order to fully initial
 
 ### startup.js
 
-    define(['knockout', 'router'],
-        function(ko, router) {
-            'use strict';
+```javascript
+define(['knockout', 'router'],
+    function(ko, router) {
+        'use strict';
 
-            // First: registering a page.
-            router.registerPage('page_name');
+        // First: registering a page.
+        router.registerPage('page_name');
 
-            // Second: add a router.
-            router.addRoute('',             // First parameter is the url, in this case '/' will serve the page.
-                {
-                    title: 'Page Title',    // The bowser title will be changed to this when routing.
-                    pageName: 'page_name'   // Knockout component name.
-                });
+        // Second: add a router.
+        router.addRoute('',             // First parameter is the url, in this case '/' will serve the page.
+            {
+                title: 'Page Title',    // The bowser title will be changed to this when routing.
+                pageName: 'page_name'   // Knockout component name.
+            });
 
-            // Third: bind the Knockout ViewModel with the router object.
-            ko.applyBindings({
-                    router: router
-                    // other objects come here
-                });
+        // Third: bind the Knockout ViewModel with the router object.
+        ko.applyBindings({
+                router: router
+                // other objects come here
+            });
 
-            // Fourth: initialize the router.
-            router.init();
-        });
+        // Fourth: initialize the router.
+        router.init();
+    });
+```
 
 ### index.html
 
-    <!DOCTYPE html>
-    <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Test</title> <!-- Won't be used, router will handle page titles on its own. -->
-        </head>
-        <body>
-            <router params="{ title: router.currentRouteTitle }"></router>
-        </body>
-    </html>
+```html
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Test</title> <!-- Won't be used, router will handle page titles on its own. -->
+    </head>
+    <body>
+        <router params="{ title: router.currentRouteTitle }"></router>
+    </body>
+</html>
+```
 
 ## Registering a page
 
@@ -87,7 +91,9 @@ The options to be used when creating the page.
 
 Route matching is mainly handled by the [byroads.js](https://github.com/W3Max/byroads.js) project.
 
-    addRoute(pattern, routeConfig)
+```javascript
+addRoute(pattern, routeConfig)
+```
     
 ### `pattern` parameter
 
@@ -112,36 +118,40 @@ By default, register page will look in the `~/components` directory. The convent
 
 By convention, the name of this file has to be `[name]-page-ui.js`, [name] being the name of your new page. This file has to return a Knockout component structure:
 
-    define(["text!./test-page.html", "knockout"], // beware of the first parameter where you have to define the html file to be used.
-        function(template, ko) {
-            'use strict';
+```javascript
+define(["text!./test-page.html", "knockout"], // beware of the first parameter where you have to define the html file to be used.
+    function(template, ko) {
+        'use strict';
 
-            var ViewModel = function() {
-                var self = this;
+        var ViewModel = function() {
+            var self = this;
 
-                self.title = ko.observable('Test page');
+            self.title = ko.observable('Test page');
 
-                return self;
-            };
+            return self;
+        };
 
-            return {
-                viewModel: {
-                    createViewModel: function(params, componentInfo) {
-                        return new ViewModel(params, componentInfo);
-                    }
-                },
-                template: template
-            };
-        });
+        return {
+            viewModel: {
+                createViewModel: function(params, componentInfo) {
+                    return new ViewModel(params, componentInfo);
+                }
+            },
+            template: template
+        };
+    });
+```
 
 ### HTML presentation
 
 When using a JavaScript UI handler, the name of this file has to be defined by you. However, if using the `htmlOnly` option, the component will be loading `[name]-page.html` by convention.
 
-    <div class="container">
-        <h1 class="page-header" data-bind="text: title"></h1>
-        <p>This is a test page.</p>
-    </div>
+```javascript
+<div class="container">
+    <h1 class="page-header" data-bind="text: title"></h1>
+    <p>This is a test page.</p>
+</div>
+```
 
 ### The activator contract
 
@@ -155,39 +165,41 @@ Sometimes, you may not want to display a page right away when changing route as 
 
 Here's the basic structure of an activator:
 
-    define(['jquery'],
-        function($) {
-            'use strict';
-    
-            var Activator = function() {
-            };
-    
-            // The activate method is required to return a promise for the router.
-            Activator.prototype.activate = function() {
-                var deferred = new $.Deferred();
-    
-                // Here would be a good place to display a loading message.
+```javascript
+define(['jquery'],
+    function($) {
+        'use strict';
+
+        var Activator = function() {
+        };
+
+        // The activate method is required to return a promise for the router.
+        Activator.prototype.activate = function() {
+            var deferred = new $.Deferred();
+
+            // Here would be a good place to display a loading message.
+            
+            // Do something asynchronously.
+            setTimeout(function() {
+
+                // Pass the loaded data to the component.
+                deferred.resolve({
+                    message: 'Loaded some data...'
+                });
                 
-                // Do something asynchronously.
-                setTimeout(function() {
-    
-                    // Pass the loaded data to the component.
-                    deferred.resolve({
-                        message: 'Loaded some data...'
-                    });
-                    
-                    // Or you could reject the operation.
-                    // deferred.reject();
+                // Or you could reject the operation.
+                // deferred.reject();
 
-                    // Here would be a good place to hide loading message.
+                // Here would be a good place to hide loading message.
 
-                }, 2000);
-    
-                return deferred.promise();
-            };
-    
-            return new Activator();
-        });
+            }, 2000);
+
+            return deferred.promise();
+        };
+
+        return new Activator();
+    });
+```
         
 ## Navigating event
 
