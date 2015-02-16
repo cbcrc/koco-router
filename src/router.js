@@ -180,70 +180,74 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         Router.prototype._navigate = function(newUrl, oldUrl) {
             var self = this;
 
-            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-            newUrl = newUrl.replace(/^\/|\/$/g, '');
-
-            var dfd = new $.Deferred();
-
-            if (byroads.getNumRoutes() === 0) {
-                dfd.reject('No route has been added to the router yet.');
-                return dfd.promise();
-            }
-
-            //TODO: Envoyer ça dans router-state?!
-            if (!self.resetingUrl && !self.navigating.canRoute()) {
-                resetUrl(self);
-                dfd.reject('TODO: raison...');
-                return dfd.promise();
-            } else if (self.resetingUrl) {
-                self.resetingUrl = false;
-                dfd.reject('TODO: raison...');
-                return dfd.promise();
-            }
-
-            var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
-
-            //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques
-            //même pattern exact - on filter sur route.authenticationRequired)
-            //var signedIn = false;
-
-            if (matchedRoutes.length > 0) {
-                var matchedRoute = matchedRoutes[0];
-                var navigateInnerPromise = navigateInner(self, matchedRoute.route);
-
-                navigateInnerPromise
-                    .then(function(activationData) {
-                        matchedRoute.activationData = activationData;
-                        matchedRoute.url = newUrl;
-                        self.currentRoute(matchedRoute);
-                        self.lastUrl = newUrl;
-                        self._setPageTitle(matchedRoute);
-                        dfd.resolve(matchedRoute);
-                    })
-                    .fail(function(activationData) {
-                        matchedRoute.activationData = activationData;
-                        self.unknownRouteHandler(matchedRoute);
-                        dfd.reject( /*, reason*/ );
-                    });
+            return new $.Deferred(function(dfd) {
+                try {
+                    //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+                    newUrl = newUrl.replace(/^\/|\/$/g, '');
 
 
-            } else {
-                //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
+                    if (byroads.getNumRoutes() === 0) {
+                        dfd.reject('No route has been added to the router yet.');
+                        return dfd.promise();
+                    }
 
-                resetUrl(self);
-                self.unknownRouteHandler( /*, reason*/ );
-                dfd.reject( /*reason*/ );
+                    //TODO: Envoyer ça dans router-state?!
+                    if (!self.resetingUrl && !self.navigating.canRoute()) {
+                        resetUrl(self);
+                        dfd.reject('TODO: raison...');
+                        return dfd.promise();
+                    } else if (self.resetingUrl) {
+                        self.resetingUrl = false;
+                        dfd.reject('TODO: raison...');
+                        return dfd.promise();
+                    }
 
-            }
+                    var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
+
+                    //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques
+                    //même pattern exact - on filter sur route.authenticationRequired)
+                    //var signedIn = false;
+
+                    if (matchedRoutes.length > 0) {
+                        var matchedRoute = matchedRoutes[0];
+                        var navigateInnerPromise = navigateInner(self, matchedRoute.route);
+
+                        navigateInnerPromise
+                            .then(function(activationData) {
+                                matchedRoute.activationData = activationData;
+                                matchedRoute.url = newUrl;
+                                self.currentRoute(matchedRoute);
+                                self.lastUrl = newUrl;
+                                self._setPageTitle(matchedRoute);
+                                dfd.resolve(matchedRoute);
+                            })
+                            .fail(function(activationData) {
+                                matchedRoute.activationData = activationData;
+                                self.unknownRouteHandler(matchedRoute);
+                                dfd.reject( /*, reason*/ );
+                            });
 
 
-            //TODO: On veut toujours faire ça?
-            // route.params.queryParams = queryParams;
-            // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
-            // route.params.request = queryParams["request_"];
-            // route.params.queryString = queryParams["?query_"];
+                    } else {
+                        //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
 
-            return dfd.promise();
+                        resetUrl(self);
+                        self.unknownRouteHandler( /*, reason*/ );
+                        dfd.reject( /*reason*/ );
+
+                    }
+
+
+                    //TODO: On veut toujours faire ça?
+                    // route.params.queryParams = queryParams;
+                    // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
+                    // route.params.request = queryParams["request_"];
+                    // route.params.queryString = queryParams["?query_"];
+
+                } catch (err) {
+                    dfd.reject(err);
+                }
+            }).promise();
         };
 
         Router.prototype._setPageTitle = function(matchedRoute) {
@@ -257,7 +261,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 if (matchedRoute.activationData && matchedRoute.activationData.pageTitle) {
                     matchedRoute.pageTitle = matchedRoute.activationData.pageTitle;
                 }
-                
+
                 self.$document[0].title = matchedRoute.pageTitle;
             }
         };
@@ -272,35 +276,37 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         }
 
         function navigateInner(self, matchedRoute) {
-            var dfd = new $.Deferred();
+            return new $.Deferred(function(dfd) {
+                try {
+                    if (matchedRoute.withActivator) {
+                        //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
+                        //the methode activate return a promise
 
-            if (matchedRoute.withActivator) {
-                //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
-                //the methode activate return a promise
+                        var registeredPageConfigs = self._getRegisteredPageConfigs(matchedRoute.pageName);
 
-                var registeredPageConfigs = self._getRegisteredPageConfigs(matchedRoute.pageName);
+                        getWithRequire(registeredPageConfigs.require + '-activator', function(activator) {
 
-                getWithRequire(registeredPageConfigs.require + '-activator', function(activator) {
+                            //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
 
-                    //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
+                            var activatePromise = activator.activate(matchedRoute);
 
-                    var activatePromise = activator.activate(matchedRoute);
+                            //activation data may have any number of properties but we require (maybe not require...) it to have pageTitle
 
-                    //activation data may have any number of properties but we require (maybe not require...) it to have pageTitle
-
-                    activatePromise
-                        .then(function(activationData) {
-                            dfd.resolve(activationData);
-                        })
-                        .fail(function(reason) {
-                            dfd.reject(reason);
+                            activatePromise
+                                .then(function(activationData) {
+                                    dfd.resolve(activationData);
+                                })
+                                .fail(function(reason) {
+                                    dfd.reject(reason);
+                                });
                         });
-                });
-            } else {
-                dfd.resolve(null);
-            }
-
-            return dfd.promise();
+                    } else {
+                        dfd.resolve(null);
+                    }
+                } catch (err) {
+                    dfd.reject(err);
+                }
+            }).promise();
         }
 
         function getWithRequire(moduleName, callback) {
