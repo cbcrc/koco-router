@@ -50,7 +50,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.settings.baseUrl = self.settings.baseUrl || '';
             self.$document = $(document);
 
-            self.routerState.init();
+            return self.routerState.init();
         };
 
         Router.prototype.registerPage = function(name, pageConfig) {
