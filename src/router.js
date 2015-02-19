@@ -38,8 +38,15 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             configureRouting(self);
 
+            self.settings = {};
+
             self.routerState = new RouterState(self);
         }
+
+        Router.prototype.configure = function(settings) {
+            var self = this;
+            self.settings = $(self.settings).extend(settings);
+        };
 
         Router.prototype.init = function() {
             var self = this;
@@ -149,7 +156,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         };
 
         Router.prototype.setUrlSilently = function(url) {
-            self.routerState.setUrlSilently(url);
+            var self = this;
+            self.routerState.setUrlSilently(self.settings.baseUrl + url);
         };
 
         //Cette méthode peut être overrided au besoin par le end user! (on est en javascript...)
@@ -163,6 +171,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         Router.prototype.navigate = function(url) {
             var self = this;
+
+            url = self.settings.baseUrl + url;
 
             if (url === self.currentRoute().url) { //reload
                 self._navigate(self, url);
@@ -183,6 +193,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             return new $.Deferred(function(dfd) {
                 try {
                     //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+                    newUrl = newUrl.replace(self.settings.baseUrl, '');
                     newUrl = newUrl.replace(/^\/|\/$/g, '');
 
 
