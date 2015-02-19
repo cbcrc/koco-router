@@ -67,16 +67,26 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 throw new Error('Router.registerPage - Duplicate page: ' + name);
             }
 
+            var page ={
+                withActivator: false
+            };
+
+            if (pageConfig.hasOwnProperty('withActivator') && typeof pageConfig.withActivator === 'boolean') {
+                page.withActivator = pageConfig.withActivator;
+            }
+
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
 
-            this._pages[name] = koUtilities.registerComponent(componentConfig.name, componentConfig);
+            page.config = koUtilities.registerComponent(componentConfig.name, componentConfig);
+
+            this._pages[name] = page;
         };
 
         Router.prototype.isRegisteredPage = function(name) {
             return name in this._pages;
         };
 
-        Router.prototype._getRegisteredPageConfigs = function(name) {
+        Router.prototype._getRegisteredPage = function(name) {
             return this._pages[name];
         };
 
@@ -106,7 +116,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var params = {}; //Not to be confused with url params extrated by byroads.js
             var pageName = pattern;
             var title = pattern;
-            var withActivator = false;
             //var requireAuthentication = false;
 
 
@@ -125,10 +134,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 (typeof routeConfig.pageName === 'string' || routeConfig.pageName instanceof String)) {
                 pageName = routeConfig.pageName;
                 componentName = routeConfig.pageName + '-page';
-            }
-
-            if (routeConfig.hasOwnProperty('withActivator') && typeof routeConfig.withActivator === 'boolean') {
-                withActivator = routeConfig.withActivator;
             }
 
             if (!self.isRegisteredPage(pageName)) {
@@ -152,7 +157,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             route.componentName = componentName;
             route.pageName = pageName;
             route.title = title;
-            route.withActivator = withActivator;
         };
 
         Router.prototype.setUrlSilently = function(url) {
@@ -286,16 +290,18 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
         }
 
+        //TODO: Allow overriding page-activator in route config
+
         function navigateInner(self, matchedRoute) {
             return new $.Deferred(function(dfd) {
                 try {
-                    if (matchedRoute.withActivator) {
+                    var registeredPage = self._getRegisteredPage(matchedRoute.pageName);
+
+                    if (registeredPage.withActivator) {
                         //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
                         //the methode activate return a promise
 
-                        var registeredPageConfigs = self._getRegisteredPageConfigs(matchedRoute.pageName);
-
-                        getWithRequire(registeredPageConfigs.require + '-activator', function(activator) {
+                        getWithRequire(registeredPage.config.require + '-activator', function(activator) {
 
                             //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
 
