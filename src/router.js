@@ -43,14 +43,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.routerState = new RouterState(self);
         }
 
-        Router.prototype.configure = function(settings) {
+        Router.prototype.init = function(settings) {
             var self = this;
+
             self.settings = $(self.settings).extend(settings);
-        };
-
-        Router.prototype.init = function() {
-            var self = this;
-
+            self.settings.baseUrl = self.settings.baseUrl || '';
             self.$document = $(document);
 
             self.routerState.init();
@@ -198,7 +195,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             return new $.Deferred(function(dfd) {
                 try {
                     //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-                    newUrl = newUrl.replace(self.settings.baseUrl, '');
+                    newUrl = newUrl.toLowerCase().replace(self.settings.baseUrl.toLowerCase(), '');
                     newUrl = newUrl.replace(/^\/|\/$/g, '');
 
 
