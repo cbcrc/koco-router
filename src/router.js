@@ -58,6 +58,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         Router.prototype.registerPage = function(name, pageConfig) {
             var self = this;
+            pageConfig = pageConfig || {};
 
             if (!name) {
                 throw new Error('Router.registerPage - Argument missing exception: name');
