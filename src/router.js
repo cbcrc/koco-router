@@ -65,7 +65,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 throw new Error('Router.registerPage - Duplicate page: ' + name);
             }
 
-            var page ={
+            var page = {
                 withActivator: false
             };
 
@@ -162,7 +162,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.routerState.setUrlSilently(self.settings.baseUrl + url);
         };
 
-        //Cette méthode peut être overrided au besoin par le end user! (on est en javascript...)
+        //Cette méthode peut être overriden au besoin par le end user
         Router.prototype.unknownRouteHandler = function() {
             var self = this;
 
@@ -171,17 +171,28 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             alert('404 - Please override the router.unknownRouteHandler function to handle unknown routes.');
         };
 
+        //Cette méthode peut être overriden au besoin par le end user
+        Router.prototype.guardRoute = function(matchedRoute, newUrl) {
+            var self = this;
+
+            return true;
+        };
+
         Router.prototype.navigate = function(url) {
             var self = this;
 
+            xyz(self, url);
+        };
+
+        function xyz(self, url, dfd) {
             url = self.settings.baseUrl + url;
 
-            if (url === self.currentRoute().url) { //reload
-                self._navigate(self, url);
+            if (self.currentRoute() && url === self.currentRoute().url) { //reload
+                return self._navigate(self, url, dfd);
             } else {
-                self.routerState.setUrl(url);
+                return self.routerState.setUrl(url, dfd);
             }
-        };
+        }
 
         function configureRouting(self) {
             //TODO: Utile?
@@ -189,79 +200,114 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         }
 
-        Router.prototype._navigate = function(newUrl, oldUrl) {
+        Router.prototype._navigate = function(newUrl, dfd) {
             var self = this;
 
-            return new $.Deferred(function(dfd) {
-                try {
-                    //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-                    newUrl = newUrl.toLowerCase().replace(self.settings.baseUrl.toLowerCase(), '');
-                    newUrl = newUrl.replace(/^\/|\/$/g, '');
-
-
-                    if (byroads.getNumRoutes() === 0) {
-                        dfd.reject('No route has been added to the router yet.');
-                        return dfd.promise();
-                    }
-
-                    //TODO: Envoyer ça dans router-state?!
-                    if (!self.resetingUrl && !self.navigating.canRoute()) {
-                        resetUrl(self);
-                        dfd.reject('TODO: raison...');
-                        return dfd.promise();
-                    } else if (self.resetingUrl) {
-                        self.resetingUrl = false;
-                        dfd.reject('TODO: raison...');
-                        return dfd.promise();
-                    }
-
-                    var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
-
-                    //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques
-                    //même pattern exact - on filter sur route.authenticationRequired)
-                    //var signedIn = false;
-
-                    if (matchedRoutes.length > 0) {
-                        var matchedRoute = matchedRoutes[0];
-                        var navigateInnerPromise = navigateInner(self, matchedRoute.route);
-
-                        navigateInnerPromise
-                            .then(function(activationData) {
-                                matchedRoute.activationData = activationData;
-                                matchedRoute.url = newUrl;
-                                self.currentRoute(matchedRoute);
-                                self.lastUrl = newUrl;
-                                self._setPageTitle(matchedRoute);
-                                dfd.resolve(matchedRoute);
-                            })
-                            .fail(function(activationData) {
-                                matchedRoute.activationData = activationData;
-                                self.unknownRouteHandler(matchedRoute);
-                                dfd.reject( /*, reason*/ );
-                            });
-
-
-                    } else {
-                        //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
-
-                        resetUrl(self);
-                        self.unknownRouteHandler( /*, reason*/ );
-                        dfd.reject( /*reason*/ );
-
-                    }
-
-
-                    //TODO: On veut toujours faire ça?
-                    // route.params.queryParams = queryParams;
-                    // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
-                    // route.params.request = queryParams["request_"];
-                    // route.params.queryString = queryParams["?query_"];
-
-                } catch (err) {
-                    dfd.reject(err);
-                }
-            }).promise();
+            if (dfd) {
+                 _navigateInner(self, newUrl, dfd);
+                return dfd;
+            } else {
+                return new $.Deferred(function(dfd) {
+                    _navigateInner(self, newUrl, dfd);
+                }).promise();
+            }
         };
+
+        function _navigateInner(self, newUrl, dfd) {
+            try {
+                if (byroads.getNumRoutes() === 0) {
+                    dfd.reject('No route has been added to the router yet.');
+                    return dfd.promise();
+                }
+
+                //TODO: Envoyer ça dans router-state?!
+                if (!self.resetingUrl && !self.navigating.canRoute()) {
+                    resetUrl(self);
+                    dfd.reject('TODO: raison...');
+                    return dfd.promise();
+                } else if (self.resetingUrl) {
+                    self.resetingUrl = false;
+                    dfd.reject('TODO: raison...');
+                    return dfd.promise();
+                }
+
+                newUrl = newUrl.toLowerCase().replace(self.settings.baseUrl.toLowerCase(), '');
+                //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+                newUrl = newUrl.replace(/^\/|\/$/g, '');
+
+                var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
+                var matchedRoute = null;
+
+                if (matchedRoutes.length > 0) {
+                    matchedRoute = matchedRoutes[0];
+                }
+
+                var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
+
+                if (guardRouteResult === false) {
+                    resetUrl(self);
+                    dfd.reject('guardRoute has blocked navigation.');
+                    return dfd.promise();
+                } else if (guardRouteResult === true) {
+                    //continue
+                } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
+                    //_navigateInner(self, dfd, guardRouteResult, oldUrl);
+                    return xyz(self, guardRouteResult, dfd);
+                } else {
+                    resetUrl(self);
+                    dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
+                    return dfd.promise();
+                }
+
+                //TODO: Supporter signedIn! (requireAuthenticiation fonctionnera seulement pour les routes indentiques
+                //même pattern exact - on filter sur route.authenticationRequired)
+                //var signedIn = false;
+
+                if (matchedRoute) {
+
+                    var navigateInnerPromise = navigateInner(self, matchedRoute.route);
+
+                    navigateInnerPromise
+                        .then(function(activationData) {
+                            var finalUrl = self.settings.baseUrl + '/' + newUrl;
+
+                            matchedRoute.activationData = activationData;
+                            matchedRoute.url = finalUrl;
+                            self.currentRoute(matchedRoute);
+                            self.lastUrl = finalUrl;
+                            self._setPageTitle(matchedRoute);
+                            dfd.resolve(matchedRoute);
+                        })
+                        .fail(function(activationData) {
+                            matchedRoute.activationData = activationData;
+                            self.unknownRouteHandler(matchedRoute);
+                            dfd.reject( /*, reason*/ );
+                            return dfd.promise();
+                        });
+
+
+                } else {
+                    //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
+
+                    //resetUrl(self);
+                    self.unknownRouteHandler( /*, reason*/ );
+                    dfd.reject( /*reason*/ );
+                    return dfd.promise();
+
+                }
+
+
+                //TODO: On veut toujours faire ça?
+                // route.params.queryParams = queryParams;
+                // route.params.parsedQueryString = chrissRogersJQqueryDeparam(queryParams["?query_"], true);
+                // route.params.request = queryParams["request_"];
+                // route.params.queryString = queryParams["?query_"];
+
+            } catch (err) {
+                dfd.reject(err);
+                return dfd.promise();
+            }
+        }
 
         Router.prototype._setPageTitle = function(matchedRoute) {
             var self = this;
