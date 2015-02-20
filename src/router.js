@@ -47,7 +47,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var self = this;
 
             self.settings = $(self.settings).extend(settings);
-            self.settings.baseUrl = self.settings.baseUrl || '';
+
             self.$document = $(document);
 
             return self.routerState.init();
@@ -159,7 +159,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         Router.prototype.setUrlSilently = function(url) {
             var self = this;
-            self.routerState.setUrlSilently(self.settings.baseUrl + url);
+            self.routerState.setUrlSilently(url);
         };
 
         //Cette méthode peut être overriden au besoin par le end user
@@ -185,8 +185,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         };
 
         function xyz(self, url, dfd) {
-            url = self.settings.baseUrl + url;
-
             if (self.currentRoute() && url === self.currentRoute().url) { //reload
                 return self._navigate(self, url, dfd);
             } else {
@@ -231,7 +229,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     return dfd.promise();
                 }
 
-                newUrl = newUrl.toLowerCase().replace(self.settings.baseUrl.toLowerCase(), '');
                 //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
                 newUrl = newUrl.replace(/^\/|\/$/g, '');
 
@@ -269,7 +266,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
                     navigateInnerPromise
                         .then(function(activationData) {
-                            var finalUrl = self.settings.baseUrl + '/' + newUrl;
+                            var finalUrl = '/' + newUrl;
 
                             matchedRoute.activationData = activationData;
                             matchedRoute.url = finalUrl;
