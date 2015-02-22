@@ -102,14 +102,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //TODO: Valider que page exist else throw...
 
-            //il pourrait y avoir 2 urls identiques - une requireAuthentication et l'autre pas...
-            // if (_.any(self.routes,
-            //         function(r) {
-            //             return r.url == route.url && r.requireAuthentication == route.requireAuthentication;
-            //         })) {
-            //     throw new Error('Router.registerPage - Duplicate url: ' + route.url);
-            // }
-
             var componentName = pattern + '-page';
             var params = {}; //Not to be confused with url params extrated by byroads.js
             var pageName = pattern;
@@ -137,11 +129,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             if (!self.isRegisteredPage(pageName)) {
                 throw new Error('Router.addRoute - The page \'' + pageName + '\' is not registered. Please register the page before adding a route that refers to it.');
             }
-
-            //At worst, the pattern will serve as title...
-            // if (!title || !routeConfig.activator) {
-            //     throw new Error('Router.addRoute - A default title or an activator must be provided when adding a route.');
-            // }
 
             var priority;
 
@@ -193,7 +180,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         function xyz(self, url, dfd) {
             if (self.currentRoute() && url === self.currentRoute().url) { //reload
-                return self._navigate(self, url, dfd);
+                return self._navigate(url, dfd);
             } else {
                 return self.routerState.setUrl(url, dfd);
             }
