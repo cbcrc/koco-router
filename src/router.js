@@ -178,6 +178,13 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             return true;
         };
 
+        //Cette méthode peut être overriden au besoin par le end user
+        Router.prototype.getPrioritizedRoute = function(matchedRoutes, newUrl) {
+            var self = this;
+
+            return matchedRoutes[0];
+        };
+
         Router.prototype.navigate = function(url) {
             var self = this;
 
@@ -236,7 +243,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 var matchedRoute = null;
 
                 if (matchedRoutes.length > 0) {
-                    matchedRoute = matchedRoutes[0];
+                    matchedRoute = self.getPrioritizedRoute(matchedRoutes, newUrl);
                 }
 
                 var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
