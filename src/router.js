@@ -179,7 +179,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var self = this;
 
             if (dfd) {
-                 _navigateInner(self, newUrl, dfd);
+                _navigateInner(self, newUrl, dfd);
                 return dfd;
             } else {
                 return new $.Deferred(function(dfd) {
@@ -249,10 +249,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                             self._setPageTitle(matchedRoute);
                             dfd.resolve(matchedRoute);
                         })
-                        .fail(function(activationData) {
-                            matchedRoute.activationData = activationData;
+                        .fail(function(error) {
                             self.unknownRouteHandler(matchedRoute);
-                            dfd.reject( /*, reason*/ );
+                            dfd.reject(error);
                             return dfd.promise();
                         });
 
@@ -266,6 +265,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     return dfd.promise();
 
                 }
+
+
             } catch (err) {
                 dfd.reject(err);
                 return dfd.promise();
@@ -361,7 +362,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             return componentConfig;
         }
-
 
         return new Router();
     });
