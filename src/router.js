@@ -249,18 +249,18 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                             dfd.resolve(matchedRoute);
                         })
                         .fail(function(error) {
-                            self.unknownRouteHandler(matchedRoute);
+                            //covention pour les 404
+                            if(error && error == '404'){
+                                    self.unknownRouteHandler( /*, reason*/ );
+                            }
                             dfd.reject(error);
-                            return dfd.promise();
                         });
-
-
                 } else {
                     //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
 
                     //resetUrl(self);
                     self.unknownRouteHandler( /*, reason*/ );
-                    dfd.reject( /*reason*/ );
+                    dfd.reject('404');
                     return dfd.promise();
 
                 }
