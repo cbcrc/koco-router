@@ -172,7 +172,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         function configureRouting(self) {
             //TODO: Utile?
             byroads.normalizeFn = byroads.NORM_AS_OBJECT;
-
         }
 
         Router.prototype._navigate = function(newUrl, dfd) {
@@ -235,7 +234,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
                 if (matchedRoute) {
 
-                    var navigateInnerPromise = navigateInner(self, matchedRoute.route);
+                    var navigateInnerPromise = navigateInner(self, matchedRoute);
 
                     navigateInnerPromise
                         .then(function(activationData) {
@@ -303,7 +302,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         function navigateInner(self, matchedRoute) {
             return new $.Deferred(function(dfd) {
                 try {
-                    var registeredPage = self._getRegisteredPage(matchedRoute.pageName);
+                    var registeredPage = self._getRegisteredPage(matchedRoute.route.pageName);
 
                     if (registeredPage.withActivator) {
                         //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
