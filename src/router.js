@@ -27,6 +27,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             self.navigating = new RouterEvent();
 
+            self.navigatingTask = ko.observable(null);
+
             configureRouting(self);
 
             self.settings = {};
@@ -174,35 +176,45 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             byroads.normalizeFn = byroads.NORM_AS_OBJECT;
         }
 
-        Router.prototype._navigate = function(newUrl, dfd) {
+        Router.prototype._navigate = function(newUrl) {
             var self = this;
 
+            var dfd = self.navigatingTask();
+
             if (dfd) {
-                _navigateInner(self, newUrl, dfd);
-                return dfd;
+                _navigateInner(self, newUrl);
             } else {
-                return new $.Deferred(function(dfd) {
-                    _navigateInner(self, newUrl, dfd);
+                dfd = new $.Deferred(function(dfd) {
+                    self.navigatingTask(dfd);
+                    _navigateInner(self, newUrl);
                 }).promise();
             }
+
+            dfd.always(function(){
+                self.navigatingTask(null);
+            });
+
+            return dfd;
         };
 
-        function _navigateInner(self, newUrl, dfd) {
+        function _navigateInner(self, newUrl) {
             try {
+                var dfd = self.navigatingTask();
+
                 if (byroads.getNumRoutes() === 0) {
                     dfd.reject('No route has been added to the router yet.');
-                    return dfd.promise();
+                    return;
                 }
 
                 //TODO: Envoyer ça dans router-state?!
                 if (!self.resetingUrl && !self.navigating.canRoute()) {
                     resetUrl(self);
                     dfd.reject('TODO: raison...');
-                    return dfd.promise();
+                    return;
                 } else if (self.resetingUrl) {
                     self.resetingUrl = false;
                     dfd.reject('TODO: raison...');
-                    return dfd.promise();
+                    return;
                 }
 
                 //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
@@ -220,16 +232,16 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 if (guardRouteResult === false) {
                     resetUrl(self);
                     dfd.reject('guardRoute has blocked navigation.');
-                    return dfd.promise();
+                    return;
                 } else if (guardRouteResult === true) {
                     //continue
                 } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
                     //_navigateInner(self, dfd, guardRouteResult, oldUrl);
-                    return xyz(self, guardRouteResult, dfd);
+                    return;
                 } else {
                     resetUrl(self);
                     dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
-                    return dfd.promise();
+                    return;
                 }
 
                 if (matchedRoute) {
@@ -250,8 +262,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         })
                         .fail(function(error) {
                             //covention pour les 404
-                            if(error && error == '404'){
-                                    self.unknownRouteHandler( /*, reason*/ );
+                            if (error && error == '404') {
+                                self.unknownRouteHandler( /*, reason*/ );
                             }
                             dfd.reject(error);
                         });
@@ -261,14 +273,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     //resetUrl(self);
                     self.unknownRouteHandler( /*, reason*/ );
                     dfd.reject('404');
-                    return dfd.promise();
-
                 }
-
-
             } catch (err) {
                 dfd.reject(err);
-                return dfd.promise();
             }
         }
 
