@@ -236,7 +236,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 } else if (guardRouteResult === true) {
                     //continue
                 } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
-                    //_navigateInner(self, dfd, guardRouteResult, oldUrl);
+                    _navigateInner(self, guardRouteResult);
                     return;
                 } else {
                     resetUrl(self);
