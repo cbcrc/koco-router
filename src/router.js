@@ -28,6 +28,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.navigating = new RouterEvent();
 
             self.navigatingTask = ko.observable(null);
+            self.isNavigating = ko.observable(false);
 
             configureRouting(self);
 
@@ -185,97 +186,103 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 _navigateInner(self, newUrl);
             } else {
                 dfd = new $.Deferred(function(dfd) {
-                    self.navigatingTask(dfd);
-                    _navigateInner(self, newUrl);
+                    try {
+                        self.navigatingTask(dfd);
+                        _navigateInner(self, newUrl);
+                    } catch (err) {
+                        dfd.reject(err);
+                    }
                 }).promise();
             }
 
-            dfd.always(function(){
+            dfd.always(function() {
                 self.navigatingTask(null);
+                self.isNavigating(false);
             });
 
             return dfd;
         };
 
         function _navigateInner(self, newUrl) {
-            try {
-                var dfd = self.navigatingTask();
+            var dfd = self.navigatingTask();
 
-                if (byroads.getNumRoutes() === 0) {
-                    dfd.reject('No route has been added to the router yet.');
-                    return;
-                }
-
-                //TODO: Envoyer ça dans router-state?!
-                if (!self.resetingUrl && !self.navigating.canRoute()) {
-                    resetUrl(self);
-                    dfd.reject('TODO: raison...');
-                    return;
-                } else if (self.resetingUrl) {
+            if (byroads.getNumRoutes() === 0) {
+                dfd.reject('No route has been added to the router yet.');
+            } else {
+                if (self.resetingUrl) {
                     self.resetingUrl = false;
                     dfd.reject('TODO: raison...');
-                    return;
-                }
-
-                //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-                newUrl = newUrl.replace(/^\/|\/$/g, '');
-
-                var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
-                var matchedRoute = null;
-
-                if (matchedRoutes.length > 0) {
-                    matchedRoute = self.getPrioritizedRoute(matchedRoutes, newUrl);
-                }
-
-                var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
-
-                if (guardRouteResult === false) {
-                    resetUrl(self);
-                    dfd.reject('guardRoute has blocked navigation.');
-                    return;
-                } else if (guardRouteResult === true) {
-                    //continue
-                } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
-                    _navigateInner(self, guardRouteResult);
-                    return;
                 } else {
-                    resetUrl(self);
-                    dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
-                    return;
+                    self.navigating.canRoute().then(function(can) {
+                        if (can) {
+                            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+                            newUrl = newUrl.replace(/^\/|\/$/g, '');
+                            _navigateInnerInner(self, newUrl);
+                        } else {
+                            resetUrl(self);
+                            dfd.reject('TODO: raison...');
+                        }
+                    });
                 }
+            }
+        }
 
-                if (matchedRoute) {
+        function _navigateInnerInner(self, newUrl) {
+            var dfd = self.navigatingTask();
+            self.isNavigating(true);
+            var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
+            var matchedRoute = null;
 
-                    var navigateInnerPromise = navigateInner(self, matchedRoute);
+            if (matchedRoutes.length > 0) {
+                matchedRoute = self.getPrioritizedRoute(matchedRoutes, newUrl);
+            }
 
-                    navigateInnerPromise
-                        .then(function(activationData) {
-                            var finalUrl = '/' + newUrl;
+            var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
 
-                            matchedRoute.activationData = activationData;
-                            matchedRoute.url = finalUrl;
-                            //TODO: Simplify interface of public matchedRoute (ex. create a simpler route from matchedRoute)
-                            self.currentRoute(matchedRoute);
-                            self.lastUrl = finalUrl;
-                            self._setPageTitle(matchedRoute);
-                            dfd.resolve(matchedRoute);
-                        })
-                        .fail(function(error) {
-                            //covention pour les 404
-                            if (error && error == '404') {
-                                self.unknownRouteHandler( /*, reason*/ );
-                            }
-                            dfd.reject(error);
-                        });
-                } else {
-                    //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
+            if (guardRouteResult === false) {
+                resetUrl(self);
+                dfd.reject('guardRoute has blocked navigation.');
+                return;
+            } else if (guardRouteResult === true) {
+                //continue
+            } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
+                _navigateInnerInner(self, guardRouteResult);
+                return;
+            } else {
+                resetUrl(self);
+                dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
+                return;
+            }
 
-                    //resetUrl(self);
-                    self.unknownRouteHandler( /*, reason*/ );
-                    dfd.reject('404');
-                }
-            } catch (err) {
-                dfd.reject(err);
+            if (matchedRoute) {
+
+                var navigateInnerPromise = navigateInner(self, matchedRoute);
+
+                navigateInnerPromise
+                    .then(function(activationData) {
+                        var finalUrl = '/' + newUrl;
+
+                        matchedRoute.activationData = activationData;
+                        matchedRoute.url = finalUrl;
+                        //TODO: Simplify interface of public matchedRoute (ex. create a simpler route from matchedRoute)
+                        self.currentRoute(matchedRoute);
+                        self.lastUrl = finalUrl;
+                        self._setPageTitle(matchedRoute);
+                        dfd.resolve(matchedRoute);
+                    })
+                    .fail(function(error) {
+                        //covention pour les 404
+                        if (error && error == '404') {
+                            self.unknownRouteHandler( /*, reason*/ );
+                        }
+                        dfd.reject(error);
+                    });
+            } else {
+                //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
+
+                //resetUrl(self);
+                self.unknownRouteHandler( /*, reason*/ );
+                dfd.reject('404');
             }
         }
 
@@ -317,7 +324,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
                         getWithRequire(registeredPage.config.require + '-activator', function(activator) {
 
-                            //TODO: activator may be a object or function ... if function -> activator = new activator(matchedRoute)
+                            if (_.isFunction(activator)) {
+                                activator = new activator();
+                            }
 
                             var activatePromise = activator.activate(matchedRoute);
 

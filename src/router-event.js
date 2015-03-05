@@ -1,5 +1,5 @@
-define(['lodash'],
-    function(_) {
+define(['lodash', 'jquery'],
+    function(_, $) {
         'use strict';
 
         var RouterEvent = function() {
@@ -20,15 +20,55 @@ define(['lodash'],
         RouterEvent.prototype.canRoute = function() {
             var self = this;
 
-            for (var i in self.subscribers) {
-                var subscriber = self.subscribers[i];
-                var result = subscriber.handler.call(subscriber.context);
+            return new $.Deferred(function(dfd) {
+                try {
+                    var promises = [];
+                    var result = true;
 
-                if (!result) return false;
+                    for (var i in self.subscribers) {
+                        var subscriber = self.subscribers[i];
+                        var handlerResult = subscriber.handler.call(subscriber.context);
+
+                        if (isPromise(handlerResult)) {
+                            promises.push(handlerResult);
+                        } else {
+                            result = result && handlerResult;
+                        }
+                    }
+
+                    if (promises.length) {
+                        $.when.apply($, promises).then(function() {
+                            finishHim(dfd, result, arguments);
+                        }, function(e) {
+                            dfd.reject(e);
+                        });
+                    } else {
+                        dfd.resolve(result);
+                    }
+                } catch (err) {
+                    dfd.reject(err);
+                }
+            }).promise();
+        };
+
+
+        function finishHim(dfd, currentResult, args) {
+            for (var i = 0; i < args.length; i++) {
+                currentResult = currentResult && args[i];
             }
 
-            return true;
-        };
+            dfd.resolve(currentResult);
+        }
+
+        function isPromise(value) {
+            if (typeof value.then !== 'function') {
+                return false;
+            }
+            var promiseThenSrc = String($.Deferred().then);
+            var valueThenSrc = String(value.then);
+
+            return promiseThenSrc === valueThenSrc;
+        }
 
         RouterEvent.prototype.unsubscribe = function(handler) {
             var self = this;
