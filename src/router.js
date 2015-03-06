@@ -143,6 +143,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             //self.navigate('page-non-trouvee');
             alert('404 - Please override the router.unknownRouteHandler function to handle unknown routes.');
         };
+	
+	//Cette méthode peut être overriden au besoin par le end user
+        Router.prototype.fail = function() {
+            var self = this;
+
+        };
 
         //Cette méthode peut être overriden au besoin par le end user
         Router.prototype.guardRoute = function(matchedRoute, newUrl) {
@@ -195,6 +201,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 }).promise();
             }
 
+            dfd.fail(self.fail);
+
             dfd.always(function() {
                 self.navigatingTask(null);
                 self.isNavigating(false);
@@ -222,6 +230,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                             resetUrl(self);
                             dfd.reject('TODO: raison...');
                         }
+                    }, function(){
+                        dfd.reject.apply(this, arguments);
                     });
                 }
             }
