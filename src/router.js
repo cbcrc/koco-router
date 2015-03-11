@@ -34,7 +34,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             configureRouting(self);
 
-            self.settings = {};
+            self.settings = {
+                baseUrl: '/'
+            };
 
             self.routerState = new RouterState(self);
         }
@@ -252,7 +254,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         y.fail.apply(this, arguments);
                         self.isNavigating(false);
 
-                        if(reason == '404'){
+                        if (reason == '404') {
                             //covention pour les 404
                             //TODO: passer plus d'info... ex. url demandée originalement, url finale tenant comptre de guardRoute
                             self.unknownRouteHandler();
@@ -359,7 +361,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                                 .fail(function(reason) {
                                     dfd.reject(reason);
                                 })
-                                .always(function(){
+                                .always(function() {
                                     self.isActivating(false);
                                 });
                         });
@@ -378,7 +380,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         }
 
         function resetUrl(self) {
-            self.routerState.pushState(self.currentRoute(), !self._internalNavigatingTask().options.stateChanged);
+            var currentRoute = self.currentRoute();
+
+            if (currentRoute) {
+                self.routerState.pushState(currentRoute, !self._internalNavigatingTask().options.stateChanged);
+            }
         }
 
         //TODO: Allow overriding page-activator in route config
