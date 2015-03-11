@@ -30,6 +30,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.navigatingTask = ko.observable(null);
             self._internalNavigatingTask = ko.observable(null);
             self.isNavigating = ko.observable(false);
+            self.isActivating = ko.observable(false);
 
             configureRouting(self);
 
@@ -250,6 +251,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         self._internalNavigatingTask(null);
                         y.fail.apply(this, arguments);
                         self.isNavigating(false);
+
+                        if(reason == '404'){
+                            //covention pour les 404
+                            //TODO: passer plus d'info... ex. url demandée originalement, url finale tenant comptre de guardRoute
+                            self.unknownRouteHandler();
+                        }
                     }
                 });
 
@@ -318,18 +325,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         self.setPageTitle(matchedRoute);
                         dfd.resolve(matchedRoute);
                     })
-                    .fail(function(error) {
-                        //covention pour les 404
-                        if (error && error == '404') {
-                            self.unknownRouteHandler( /*, reason*/ );
-                        }
-                        dfd.reject(error);
+                    .fail(function() {
+                        dfd.reject.apply(this, arguments);
                     });
             } else {
-                //Appeller une méthode/event sur le router pour laisser plein controle au concepteur de l'app
-
-                //resetUrl(self);
-                self.unknownRouteHandler( /*, reason*/ );
                 dfd.reject('404');
             }
         }
@@ -351,12 +350,17 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
                             //activation data may have any number of properties but we require (maybe not require...) it to have pageTitle
 
+                            self.isActivating(true);
+
                             activator.activate(matchedRoute)
                                 .then(function(activationData) {
                                     dfd.resolve(activationData);
                                 })
                                 .fail(function(reason) {
                                     dfd.reject(reason);
+                                })
+                                .always(function(){
+                                    self.isActivating(false);
                                 });
                         });
                     } else {
@@ -374,7 +378,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         }
 
         function resetUrl(self) {
-            self.routerState.pushState(self.currentRoute(), !self._internalNavigatingTask().option.stateChanged);
+            self.routerState.pushState(self.currentRoute(), !self._internalNavigatingTask().options.stateChanged);
         }
 
         //TODO: Allow overriding page-activator in route config
