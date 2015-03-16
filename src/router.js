@@ -44,7 +44,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         Router.prototype.init = function(settings) {
             var self = this;
 
-            self.settings = $(self.settings).extend(settings);
+            self.settings = $.extend({}, self.settings, settings || {});
 
             self.$document = $(document);
 
