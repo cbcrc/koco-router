@@ -270,12 +270,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 throw new Error('router.toPushStateOptions - context.route is mandatory');
             }
 
-            self.routerState.pushState({
+            return {
                 url: context.route.url,
                 pageTitle: context.pageTitle,
                 stateObject: options.stateObject || {},
                 replace: options.replace || false
-            });
+            };
         }
 
         function resetUrl(self) {
