@@ -225,7 +225,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         if (reason !== 'navigation hijacked') {
                             resetUrl(self);
 
-                            self._navigatingTask.fail.apply(this, arguments);
+                            self._navigatingTask.reject.apply(this, arguments);
                             self._navigatingTask = null;
                             self._internalNavigatingTask = null;
                             self.isNavigating(false);
