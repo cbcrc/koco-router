@@ -340,7 +340,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     if (registeredPage.withActivator) {
                         getWithRequire(registeredPage.require + '-activator', function(activator) {
                             if (_.isFunction(activator)) {
-                                activator = new activator();
+                                activator = new activator(self._internalNavigatingTask.context);
                             }
 
                             self.isActivating(true);
