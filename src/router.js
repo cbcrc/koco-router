@@ -1,5 +1,7 @@
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', 'router-event'],
-    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent) {
+define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', './router-event',
+        './context', './route'
+    ],
+    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent, Context, Route) {
         'use strict';
 
         function Router() {
@@ -11,24 +13,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 basePath: 'bower_components/knockout-router/src'
             });
 
-            self.currentRoute = ko.observable(null);
-
-            self.currentRouteTitle = ko.computed(function() {
-                var currentRoute = self.currentRoute();
-
-                if (currentRoute) {
-                    return currentRoute.title;
-                }
-
-                return '';
-            });
+            self.context = ko.observable(null);
 
             self._pages = {};
 
             self.navigating = new RouterEvent();
 
-            self.navigatingTask = ko.observable(null);
-            self._internalNavigatingTask = ko.observable(null);
+            self._navigatingTask = null;
+            self._internalNavigatingTask = null;
             self.isNavigating = ko.observable(false);
             self.isActivating = ko.observable(false);
 
@@ -64,7 +56,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
 
             var page = {
-                withActivator: false
+                withActivator: false,
+                name: name,
+                title: pageConfig.title || ''
             };
 
             if (pageConfig.hasOwnProperty('withActivator') && typeof pageConfig.withActivator === 'boolean') {
@@ -73,7 +67,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
 
-            page.config = koUtilities.registerComponent(componentConfig.name, componentConfig);
+            var koConfig = koUtilities.registerComponent(componentConfig.name, componentConfig);
+
+            page.componentName = componentConfig.name;
+            page.require = koConfig.require;
 
             this._pages[name] = page;
         };
@@ -91,17 +88,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             routeConfig = routeConfig || {};
 
             //TODO: Valider que page exist else throw...
-
-            var componentName = pattern + '-page';
             var params = {}; //Not to be confused with url params extrated by byroads.js
             var pageName = pattern;
-            var title = pattern;
-            //var requireAuthentication = false;
+            var pageTitle = '';
 
 
-            if (routeConfig.hasOwnProperty('title') &&
-                (typeof routeConfig.title === 'string' || routeConfig.title instanceof String)) {
-                title = routeConfig.title;
+            if (routeConfig.hasOwnProperty('pageTitle') &&
+                (typeof routeConfig.pageTitle === 'string' || routeConfig.pageTitle instanceof String)) {
+                pageTitle = routeConfig.pageTitle;
             }
 
             if (routeConfig.hasOwnProperty('params') &&
@@ -113,7 +107,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             if (routeConfig.hasOwnProperty('pageName') &&
                 (typeof routeConfig.pageName === 'string' || routeConfig.pageName instanceof String)) {
                 pageName = routeConfig.pageName;
-                componentName = routeConfig.pageName + '-page';
             }
 
             if (!self.isRegisteredPage(pageName)) {
@@ -128,10 +121,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             var route = byroads.addRoute(pattern, priority);
 
+            //TODO: Lier la page tout de suite au lieu de le faire à chaque fois qu'on crée un Route
+
             route.params = params;
-            route.componentName = componentName;
             route.pageName = pageName;
-            route.title = title;
+            route.pageTitle = pageTitle;
         };
 
         //Cette méthode peut être overriden au besoin par le end user
@@ -150,33 +144,29 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         };
 
         //Cette méthode peut être overriden au besoin par le end user
-        Router.prototype.guardRoute = function(matchedRoute, newUrl) {
+        Router.prototype.guardRoute = function( /*matchedRoute, newUrl*/ ) {
             //var self = this;
 
             return true;
         };
 
         //Cette méthode peut être overriden au besoin par le end user
-        Router.prototype.getPrioritizedRoute = function(matchedRoutes, newUrl) {
+        Router.prototype.getPrioritizedRoute = function(matchedRoutes /*, newUrl*/ ) {
             //var self = this;
 
             return matchedRoutes[0];
         };
 
-        Router.prototype.setPageTitle = function(matchedRoute) {
+        Router.prototype.setPageTitle = function(pageTitle) {
             var self = this;
 
-            if (matchedRoute) {
-                //todo: iiii... pas ici svp!
-                //CQRS..
-                matchedRoute.pageTitle = matchedRoute.route.title; /*TODO: rename pageTitle?*/
+            self.$document[0].title = pageTitle;
+        };
 
-                if (matchedRoute.activationData && matchedRoute.activationData.pageTitle) {
-                    matchedRoute.pageTitle = matchedRoute.activationData.pageTitle;
-                }
+        Router.prototype.setUrlSilently = function(options) {
+            var self = this;
 
-                self.$document[0].title = matchedRoute.pageTitle;
-            }
+            self.routerState.pushState(options);
         };
 
         //stateChanged option - for back and foward buttons (and onbeforeunload eventually)
@@ -186,122 +176,137 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //so on était déjà en train de naviguer on hijack la premiere navigation (récupère le dfd) et on kill le internalDefered
 
-            var dfd = self.navigatingTask();
-
-            if (dfd) {
-                self._internalNavigatingTask().dfd.reject('navigation hijacked');
+            if (self._internalNavigatingTask && self._internalNavigatingTask.dfd && self._internalNavigatingTask.dfd.state() === 'pending') {
+                self._internalNavigatingTask.dfd.reject('navigation hijacked');
             } else {
-                dfd = new $.Deferred();
+                self._navigatingTask = new $.Deferred();
             }
 
-            self.navigatingTask(dfd);
 
-            var defaultOptions = {
-                replace: false,
-                trigger: true
-            };
+            // return new $.Deferred(function(dfd) {
+            //     try {
 
-            options = $.extend(defaultOptions, options || {});
+            //     } catch (err) {
+            //         dfd.reject(err);
+            //     }
+            // }).promise();
 
-            var internalDfd = new $.Deferred();
-            self._internalNavigatingTask({
-                dfd: internalDfd,
-                options: options
-            });
 
-            if (options.trigger) {
-                _navigateInner(self, url);
-            } else {
-                var pageTitle = '';
-                var currentRoute = self.currentRoute();
+            setTimeout(function() {
+                var defaultOptions = {
+                    replace: false,
+                    stateChanged: false
+                };
 
-                if (currentRoute) {
-                    pageTitle = currentRoute.pageTitle;
-                }
+                options = $.extend(defaultOptions, options || {});
 
-                self.routerState.pushState({
-                    pageTitle: pageTitle,
-                    url: url
-                }, true);
-                internalDfd.resolve(currentRoute);
-            }
+                self._internalNavigatingTask = {
+                    dfd: new $.Deferred(),
+                    options: options,
+                    context: new Context()
+                };
 
-            internalDfd
-                .done(function(currentRoute) {
-                    if (currentRoute) {
-                        var opt = self._internalNavigatingTask().options;
-                        var replace = false;
-
-                        if (opt) {
-                            replace = opt.replace;
+                self._internalNavigatingTask.dfd
+                    .done(function(context) {
+                        if (context) {
+                            var pushStateOptions = toPushStateOptions(self, context, self._internalNavigatingTask.options);
+                            self.routerState.pushState(pushStateOptions);
+                            self.context(context);
+                            self.setPageTitle(context.pageTitle);
                         }
 
-                        self.routerState.pushState(currentRoute, replace);
-                    }
-
-                    var x = self.navigatingTask();
-                    self.navigatingTask(null);
-                    self._internalNavigatingTask(null);
-                    x.resolve.apply(this, arguments);
-                    self.isNavigating(false);
-                })
-                .fail(function(reason) {
-                    if (reason !== 'navigation hijacked') {
-                        resetUrl(self);
-                        var y = self.navigatingTask();
-                        self.navigatingTask(null);
-                        self._internalNavigatingTask(null);
-                        y.fail.apply(this, arguments);
+                        self._navigatingTask.resolve.apply(this, arguments);
+                        self._navigatingTask = null;
+                        self._internalNavigatingTask = null;
                         self.isNavigating(false);
+                        self.isActivating(false);
+                    })
+                    .fail(function(reason) {
+                        if (reason !== 'navigation hijacked') {
+                            resetUrl(self);
 
-                        if (reason == '404') {
-                            //covention pour les 404
-                            //TODO: passer plus d'info... ex. url demandée originalement, url finale tenant comptre de guardRoute
-                            self.unknownRouteHandler();
+                            self._navigatingTask.reject.apply(this, arguments);
+                            self._navigatingTask = null;
+                            self._internalNavigatingTask = null;
+                            self.isNavigating(false);
+                            self.isActivating(false);
+
+                            if (reason == '404') {
+                                //covention pour les 404
+                                //TODO: passer plus d'info... ex. url demandée originalement, url finale tenant comptre de guardRoute
+                                self.unknownRouteHandler();
+                            }
                         }
-                    }
-                });
+                    });
+
+                if (byroads.getNumRoutes() === 0) {
+                    self._internalNavigatingTask.dfd.reject('No route has been added to the router yet.');
+                } else {
+                    self.navigating.canRoute().then(function(can) {
+                        if (can) {
+                            _navigateInner(self, url);
+                        } else {
+                            resetUrl(self);
+                            self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
+                        }
+                    }, function() {
+                        self._internalNavigatingTask.dfd.reject.apply(this, arguments);
+                    });
+                }
+            }, 0);
+
 
             //TODO: S'assurer que canRoute() === false, remet l'url précédente sur back/foward button
 
-            return dfd.promise();
+            return self._navigatingTask.promise();
         };
 
-        function _navigateInner(self, newUrl) {
-            var dfd = self._internalNavigatingTask().dfd;
+        function toPushStateOptions(self, context, options) {
+            if (!context) {
+                throw new Error('router.toPushStateOptions - context is mandatory');
+            }
 
-            if (byroads.getNumRoutes() === 0) {
-                dfd.reject('No route has been added to the router yet.');
-            } else {
-                self.navigating.canRoute().then(function(can) {
-                    if (can) {
-                        //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-                        newUrl = newUrl.replace(/^\/|\/$/g, '');
-                        _navigateInnerInner(self, newUrl);
-                    } else {
-                        resetUrl(self);
-                        dfd.reject('TODO: raison...');
-                    }
-                }, function() {
-                    dfd.reject.apply(this, arguments);
+            if (!context.route) {
+                throw new Error('router.toPushStateOptions - context.route is mandatory');
+            }
+
+            return {
+                url: context.route.url,
+                pageTitle: context.pageTitle,
+                stateObject: options.stateObject || {},
+                replace: options.replace || false
+            };
+        }
+
+        function resetUrl(self) {
+            var context = self.context();
+
+            if (context) {
+                var pushStateOptions = toPushStateOptions(self, context, {
+                    replace: !self._internalNavigatingTask.options.stateChanged
                 });
+                self.routerState.pushState(pushStateOptions);
             }
         }
 
-        function _navigateInnerInner(self, newUrl) {
-            var dfd = self._internalNavigatingTask().dfd;
+        function _navigateInner(self, newUrl) {
+            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+            var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
+
+            var dfd = self._internalNavigatingTask.dfd;
             self.isNavigating(true);
-            var matchedRoutes = byroads.getMatchedRoutes(newUrl, true);
+            var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
             var matchedRoute = null;
 
             if (matchedRoutes.length > 0) {
-                matchedRoute = self.getPrioritizedRoute(matchedRoutes, newUrl);
+                matchedRoute = self.getPrioritizedRoute(convertMatchedRoutes(self, matchedRoutes, newUrl), newUrl);
+
+                self._internalNavigatingTask.context.addMatchedRoute(matchedRoute);
             }
 
             var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
 
             if (guardRouteResult === false) {
-                resetUrl(self);
                 dfd.reject('guardRoute has blocked navigation.');
                 return;
             } else if (guardRouteResult === true) {
@@ -310,22 +315,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 _navigateInner(self, guardRouteResult);
                 return;
             } else {
-                resetUrl(self);
                 dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
                 return;
             }
 
             if (matchedRoute) {
-                activate(self, matchedRoute)
-                    .then(function(activationData) {
-                        var finalUrl = '/' + newUrl;
-
-                        matchedRoute.activationData = activationData;
-                        matchedRoute.url = finalUrl;
-                        //TODO: Simplify interface of public matchedRoute (ex. create a simpler route from matchedRoute)
-                        self.currentRoute(matchedRoute);
-                        self.setPageTitle(matchedRoute);
-                        dfd.resolve(matchedRoute);
+                activate(self)
+                    .then(function(activatedContext) {
+                        dfd.resolve(activatedContext);
                     })
                     .fail(function() {
                         dfd.reject.apply(this, arguments);
@@ -335,38 +332,29 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
         }
 
-        function activate(self, matchedRoute) {
+        function activate(self) {
             return new $.Deferred(function(dfd) {
                 try {
-                    var registeredPage = self._getRegisteredPage(matchedRoute.route.pageName);
+                    var registeredPage = self._internalNavigatingTask.context.route.page;
 
                     if (registeredPage.withActivator) {
-                        //Load activator js file (require.js) (by covention we have the filename and basePath) and call activate method on it - pass route as argument
-                        //the methode activate return a promise
-
-                        getWithRequire(registeredPage.config.require + '-activator', function(activator) {
-
+                        getWithRequire(registeredPage.require + '-activator', function(activator) {
                             if (_.isFunction(activator)) {
-                                activator = new activator();
+                                activator = new activator(self._internalNavigatingTask.context);
                             }
-
-                            //activation data may have any number of properties but we require (maybe not require...) it to have pageTitle
 
                             self.isActivating(true);
 
-                            activator.activate(matchedRoute)
-                                .then(function(activationData) {
-                                    dfd.resolve(activationData);
+                            activator.activate(self._internalNavigatingTask.context)
+                                .then(function() {
+                                    dfd.resolve(self._internalNavigatingTask.context);
                                 })
                                 .fail(function(reason) {
                                     dfd.reject(reason);
-                                })
-                                .always(function() {
-                                    self.isActivating(false);
                                 });
                         });
                     } else {
-                        dfd.resolve(null);
+                        dfd.resolve(self._internalNavigatingTask.context);
                     }
                 } catch (err) {
                     dfd.reject(err);
@@ -374,17 +362,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }).promise();
         }
 
-        function configureRouting(self) {
+        function configureRouting( /*self*/ ) {
             //TODO: Utile?
             byroads.normalizeFn = byroads.NORM_AS_OBJECT;
-        }
-
-        function resetUrl(self) {
-            var currentRoute = self.currentRoute();
-
-            if (currentRoute) {
-                self.routerState.pushState(currentRoute, !self._internalNavigatingTask().options.stateChanged);
-            }
         }
 
         //TODO: Allow overriding page-activator in route config
@@ -416,6 +396,19 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
 
             return componentConfig;
+        }
+
+        function convertMatchedRoutes(self, matchedRoutes, url) {
+            var result = [];
+
+            for (var i = 0; i < matchedRoutes.length; i++) {
+                var matchedRoute = matchedRoutes[i];
+                var page = self._getRegisteredPage(matchedRoute.route.pageName);
+                var route = new Route(url, matchedRoute, page);
+                result.push(route);
+            }
+
+            return result;
         }
 
         return new Router();
