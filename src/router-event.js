@@ -25,7 +25,7 @@ define(['lodash', 'jquery'],
                     var promises = [];
                     var result = true;
 
-                    for (var i in self.subscribers) {
+                    for (var i = 0; i < self.subscribers.length; i++) {
                         var subscriber = self.subscribers[i];
                         var handlerResult = subscriber.handler.call(subscriber.context);
 
@@ -72,13 +72,10 @@ define(['lodash', 'jquery'],
 
         RouterEvent.prototype.unsubscribe = function(handler) {
             var self = this;
-            var subs = _.where(self.subscribers, {
-                handler: handler
-            });
 
-            for (var i in subs) {
-                self.subscribers.splice(self.subscribers.indexOf(subs[i]));
-            }
+            _.remove(self.subscribers, function(subscriber) {
+                return subscriber.handler === handler;
+            });
         };
 
         return RouterEvent;
