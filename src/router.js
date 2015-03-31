@@ -293,6 +293,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
             var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
 
+            // Remove hash
+            cleanedUrl = cleanedUrl.replace(/#.*$/g, '');
+
             var dfd = self._internalNavigatingTask.dfd;
             self.isNavigating(true);
             var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
