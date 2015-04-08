@@ -20,54 +20,29 @@ define(['lodash', 'jquery'],
         RouterEvent.prototype.canRoute = function() {
             var self = this;
 
-            return new $.Deferred(function(dfd) {
-                try {
-                    var promises = [];
-                    var result = true;
-
-                    for (var i = 0; i < self.subscribers.length; i++) {
-                        var subscriber = self.subscribers[i];
-                        var handlerResult = subscriber.handler.call(subscriber.context);
-
-                        if (isPromise(handlerResult)) {
-                            promises.push(handlerResult);
-                        } else {
-                            result = result && handlerResult;
-                        }
-                    }
-
-                    if (promises.length) {
-                        $.when.apply($, promises).then(function() {
-                            finishHim(dfd, result, arguments);
-                        }, function(e) {
-                            dfd.reject(e);
-                        });
-                    } else {
-                        dfd.resolve(result);
-                    }
-                } catch (err) {
-                    dfd.reject(err);
-                }
-            }).promise();
+            return checkSubscriber(self.subscribers, 0);
         };
 
-
-        function finishHim(dfd, currentResult, args) {
-            for (var i = 0; i < args.length; i++) {
-                currentResult = currentResult && args[i];
+        function checkSubscriber(subscribers, index) {
+            // No more subscribers to check
+            if (index >= subscribers.length) {
+                return $.Deferred().resolve(true).promise();
             }
 
-            dfd.resolve(currentResult);
-        }
+            var subscriber = subscribers[index];
+            var handlerResult = subscriber.handler.call(subscriber.context);
 
-        function isPromise(value) {
-            if (typeof value.then !== 'function') {
-                return false;
+            if (!handlerResult) {
+                return $.Deferred().resolve(false).promise();
             }
-            var promiseThenSrc = String($.Deferred().then);
-            var valueThenSrc = String(value.then);
 
-            return promiseThenSrc === valueThenSrc;
+            return $.when(handlerResult).then(function (result) {
+                if (!result) {
+                    return false;
+                }
+
+                return checkSubscriber(subscribers, index + 1);
+            });
         }
 
         RouterEvent.prototype.unsubscribe = function(handler) {
