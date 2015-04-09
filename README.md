@@ -12,6 +12,8 @@ Knockout router is build around the knockout components. Using push state or has
     - [JavaScript UI handler](#javascript-ui-handler)
     - [HTML presentation](#html-presentation)
     - [The activator contract](#the-activator-contract)
+- [The `context` object](#the-context-object)
+- [The `route` object](#the-route-object)
 - [Navigating event](#navigating-event)
 
 ## Installation
@@ -119,11 +121,11 @@ By default, register page will look in the `~/components` directory. The convent
 By convention, the name of this file has to be `[name]-page-ui.js`, [name] being the name of your new page. This file has to return a Knockout component structure:
 
 ```javascript
-define(["text!./test-page.html", "knockout"], // beware of the first parameter where you have to define the html file to be used.
+define(['text!./test-page.html', 'knockout'], // beware of the first parameter where you have to define the html file to be used.
     function(template, ko) {
         'use strict';
 
-        var ViewModel = function() {
+        var ViewModel = function(context, componentInfo) {
             var self = this;
 
             self.title = ko.observable('Test page');
@@ -133,8 +135,8 @@ define(["text!./test-page.html", "knockout"], // beware of the first parameter w
 
         return {
             viewModel: {
-                createViewModel: function(params, componentInfo) {
-                    return new ViewModel(params, componentInfo);
+                createViewModel: function(context, componentInfo) {
+                    return new ViewModel(context, componentInfo);
                 }
             },
             template: template
@@ -146,7 +148,7 @@ define(["text!./test-page.html", "knockout"], // beware of the first parameter w
 
 When using a JavaScript UI handler, the name of this file has to be defined by you. However, if using the `htmlOnly` option, the component will be loading `[name]-page.html` by convention.
 
-```javascript
+```html
 <div class="container">
     <h1 class="page-header" data-bind="text: title"></h1>
     <p>This is a test page.</p>
@@ -170,11 +172,12 @@ define(['jquery'],
     function($) {
         'use strict';
 
-        var Activator = function() {
+        var Activator = function(context) {
+            // Context object can be accessed here for pre-initializations. It will be then passed back to the activate function.
         };
 
         // The activate method is required to return a promise for the router.
-        Activator.prototype.activate = function() {
+        Activator.prototype.activate = function(context) {
             var deferred = new $.Deferred();
 
             // Here would be a good place to display a loading message.
@@ -182,10 +185,10 @@ define(['jquery'],
             // Do something asynchronously.
             setTimeout(function() {
 
-                // Pass the loaded data to the component.
-                deferred.resolve({
-                    message: 'Loaded some data...'
-                });
+                // add some data to the context object as it will be passed to the page afterward.
+                context.someData = { message: "Loaded some data..." };
+
+                deferred.resolve();
                 
                 // Or you could reject the operation.
                 // deferred.reject();
@@ -201,6 +204,33 @@ define(['jquery'],
     });
 ```
         
+## The `context` object
+
+Pages and activators will receive an instance of an object representing the current context. It contains informations about the current route and the matched route.
+
+```javascript
+{
+    matchedRoutes: Array, // The list of matched route using URL patterns. This is mostly for debugging purpose.
+    route: Object // The current matched route object, see The route object for more informations.
+}
+```
+
+## The `route` object
+
+The route object contains informations about the current page, parameters and url parameters. It can be used an activation time or inside the page itself.
+
+```javascript
+{
+    page: Object, // The page component that will be used to render the URL
+    pageTitle: String, // The page title. Modifying this value inside an activator will change the page title.
+    params: Object, // Parameter object passed at the registerPage call.
+    pattern: String, // The URL pattern for this route. Used for debugging purpose.
+    query: Object, // The Query String attached to the URL. It contains an object of the key/values pair.
+    url: String, // The current URL (including Query String).
+    urlParams: Array // Matched URL parameters via the described tokens in the pattern.
+}
+```
+
 ## Navigating event
 
 When navigating to a new URL, the router will raise a `navigating` event.

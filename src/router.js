@@ -1,3 +1,6 @@
+// Copyright (c) CBC/Radio-Canada. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', './router-event',
         './context', './route'
     ],
