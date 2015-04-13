@@ -2,7 +2,7 @@
   "name": "knockout-router",
   "version": "0.2.10",
   "authors": [
-    "W3Max"
+    "Maxime Séguin"
   ],
   "description": "A simple router for Knockout.",
   "main": "dist/router.js",

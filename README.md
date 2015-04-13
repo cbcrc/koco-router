@@ -1,6 +1,6 @@
 # Knockout Router
 
-Knockout router is build around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL. It is an opinionated component based on the [Koco generator](https://github.com/Allov/generator-koco).
+Knockout router is build around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL. It is an opinionated component based on the [Koco generator](https://github.com/cbcrc/generator-koco).
 
 ## Table of contents
 
@@ -91,7 +91,7 @@ The options to be used when creating the page.
 
 ## Adding a route
 
-Route matching is mainly handled by the [byroads.js](https://github.com/W3Max/byroads.js) project.
+Route matching is mainly handled by the [byroads.js](https://github.com/cbcrc/byroads.js) project.
 
 ```javascript
 addRoute(pattern, routeConfig)

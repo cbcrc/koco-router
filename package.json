@@ -8,12 +8,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/W3Max/knockout-router.git"
+    "url": "https://github.com/cbcrc/knockout-router.git"
   },
-  "author": "W3Max",
+  "author": "Maxime Séguin",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/W3Max/knockout-router/issues"
+    "url": "https://github.com/cbcrc/knockout-router/issues"
   },
-  "homepage": "https://github.com/W3Max/knockout-router"
+  "homepage": "https://github.com/cbcrc/knockout-router"
 }
