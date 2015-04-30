@@ -1,6 +1,6 @@
 # Knockout Router
 
-Knockout router is build around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL. It is an opinionated component based on the [Koco generator](https://github.com/cbcrc/generator-koco).
+Koco router is built around the knockout components. Using push state or hash to create routes, it will be able to tell knockout which component to display upon changing URL. It is an opinionated component based on the [Koco generator](https://github.com/cbcrc/generator-koco).
 
 ## Table of contents
 
