@@ -9,6 +9,7 @@
   "moduleType": [
     "amd"
   ],
+  "homepage": "https://github.com/cbcrc/koco-router",
   "license": "MIT",
   "ignore": [
     "**/.*",
