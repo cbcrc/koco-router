@@ -1,6 +1,6 @@
 {
-  "name": "knockout-router",
-  "version": "0.2.10",
+  "name": "koco-router",
+  "version": "0.3.0",
   "authors": [
     "Maxime Séguin"
   ],
