@@ -14,6 +14,7 @@ Koco router is built around the knockout components. Using push state or hash to
     - [The activator contract](#the-activator-contract)
 - [The `context` object](#the-context-object)
 - [The `route` object](#the-route-object)
+- [Router state](#router-state)
 - [Navigating event](#navigating-event)
 
 ## Installation
@@ -84,9 +85,11 @@ The name of the knockout component being added.
 The options to be used when creating the page.
 
     {
-        isBower: boolean    // defines if the component comes from bower, a default bower path will be used.
-        basePath: string    // the base path to be use to find the component. It has to be the root of the default files (see below).
-        htmlOnly: boolean   // when creating a page, it is possible that there would be no JavaScript linked to this page, it will assume so and load the page using the naming convention (see below).
+        isBower: boolean        // defines if the component comes from bower, a default bower path will be used.
+        basePath: string        // the base path to be use to find the component. It has to be the root of the default files (see below).
+        htmlOnly: boolean       // when creating a page, it is possible that there would be no JavaScript linked to this page, it will assume so and load the page using the naming convention (see below).
+        withActivator: boolean  // defines if the page has an activator to be used when navigating to the said page.
+        activatorPath: string   // overrides the convention path for the activator file. Useful when you want to use a base activator located in a bower component.  
     }
 
 ## Adding a route
@@ -109,7 +112,6 @@ The configuration to be used when creating the route.
         title: string           // will change the browser title to this value upon routing.
         params: object          // parameters to be passed to the page component when routing. Useful when your page has dynamic content driven by parameters.
         pageName: string        // the component name used as the registerPage() name parameter.
-        withActivator: boolean  // specifies whether or not the page is using an activator object.
     }
 
 ## Creating a page component
@@ -231,6 +233,26 @@ The route object contains informations about the current page, parameters and ur
 }
 ```
 
+## Router state
+
+Koco router has two states: `isActivating` and `isNavigating`.
+
+The `isNavigating` state is the first to be enabled (`true`) when using `router.navigate()` or clicking a link. The router will then look for an `activator` and with enable `isActivating`.
+
+Once the activator is done, `isActivating` will be disabled (`false`) and the page will be called (displayed). Once it is displayed, `isNavigating` will also be disabled.
+
+```
+User click on a link                     Page is displayed
+v                                        v
+|----------------------------------------|
+  isNavigating(true)                   isNavigating(false)
+  v                                    v
+  |------------------------------------|
+    isActivating(true) isActivating(false)
+    v                  v
+    |------------------|
+``` 
+
 ## Navigating event
 
 When navigating to a new URL, the router will raise a `navigating` event.
@@ -258,3 +280,13 @@ You may unsubscribe this way:
 #### `handler` parameter
 
 The _exact_ handler passed earlier when subscribing. You may want to avoid creating inline function.
+
+```javascript
+funtion preventNav() {
+    return false;
+}
+
+router.navigating.subscribe(preventNav, this);
+...
+router.navigating.unsubscribe(preventNav);
+```
