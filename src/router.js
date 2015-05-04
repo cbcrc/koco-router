@@ -60,12 +60,17 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             var page = {
                 withActivator: false,
+                activatorPath: '',
                 name: name,
                 title: pageConfig.title || ''
             };
 
             if (pageConfig.hasOwnProperty('withActivator') && typeof pageConfig.withActivator === 'boolean') {
                 page.withActivator = pageConfig.withActivator;
+            }
+            
+            if (pageConfig.hasOwnProperty('activatorPath') && typeof pageConfig.activatorPath === 'string') {
+                page.activatorPath = pageConfig.activatorPath;
             }
 
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
@@ -344,7 +349,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     var registeredPage = self._internalNavigatingTask.context.route.page;
 
                     if (registeredPage.withActivator) {
-                        getWithRequire(registeredPage.require + '-activator', function(activator) {
+                        getWithRequire(registeredPage.activatorPath || (registeredPage.require + '-activator'), function(activator) {
                             if (_.isFunction(activator)) {
                                 activator = new activator(self._internalNavigatingTask.context);
                             }
