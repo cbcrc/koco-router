@@ -13,7 +13,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
             koUtilities.registerComponent('router', {
-                basePath: 'bower_components/knockout-router/src'
+                basePath: 'bower_components/koco-router/src'
             });
 
             self.context = ko.observable(null);
