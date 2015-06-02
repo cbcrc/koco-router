@@ -44,9 +44,13 @@ define(['jquery', 'lodash'],
         RouterStatePush.prototype.init = function() {
             var self = this;
 
-            //back and foward button support
-            $(window).on('popstate', function(e) {
-                backAndFowardButtonHandler(self, e);
+            //prevent bug with safari (popstate is fired on page load with safari)
+            $(document).ready(function() {
+                //back and foward button support
+                $(window).on('popstate', function(e) {
+                    backAndFowardButtonHandler(self, e);
+                });
+
             });
 
             //href click support
