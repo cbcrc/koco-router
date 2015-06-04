@@ -15,6 +15,7 @@ define(['./query'],
             self.params = matchedRoute.route.params;
             self.pageTitle = matchedRoute.route.pageTitle;
             self.page = page;
+            self.cached = matchedRoute.route.cached;
         };
 
         return Route;

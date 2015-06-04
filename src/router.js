@@ -22,6 +22,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             self.navigating = new RouterEvent();
 
+            self.cachedPages = {};
+
             self._navigatingTask = null;
             self._internalNavigatingTask = null;
             self.isNavigating = ko.observable(false);
@@ -68,7 +70,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             if (pageConfig.hasOwnProperty('withActivator') && typeof pageConfig.withActivator === 'boolean') {
                 page.withActivator = pageConfig.withActivator;
             }
-            
+
             if (pageConfig.hasOwnProperty('activatorPath') && typeof pageConfig.activatorPath === 'string') {
                 page.activatorPath = pageConfig.activatorPath;
             }
@@ -99,7 +101,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var params = {}; //Not to be confused with url params extrated by byroads.js
             var pageName = pattern;
             var pageTitle = '';
+            var cached = false;
 
+            if (routeConfig.hasOwnProperty('cached') && typeof routeConfig.cached === 'boolean') {
+                cached = routeConfig.cached;
+            }
 
             if (routeConfig.hasOwnProperty('pageTitle') &&
                 (typeof routeConfig.pageTitle === 'string' || routeConfig.pageTitle instanceof String)) {
@@ -134,6 +140,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             route.params = params;
             route.pageName = pageName;
             route.pageTitle = pageTitle;
+            route.cached = cached;
         };
 
         //Cette méthode peut être overriden au besoin par le end user
@@ -219,6 +226,13 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         if (context) {
                             var pushStateOptions = toPushStateOptions(self, context, self._internalNavigatingTask.options);
                             self.routerState.pushState(pushStateOptions);
+
+                            var previousContext = self.context();
+
+                            if (previousContext && previousContext.route.cached) {
+                                self.cachedPages[previousContext.route.url] = previousContext;
+                            }
+
                             self.context(context);
                             self.setPageTitle(context.pageTitle);
                         }
@@ -331,13 +345,19 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
 
             if (matchedRoute) {
-                activate(self)
-                    .then(function(activatedContext) {
-                        dfd.resolve(activatedContext);
-                    })
-                    .fail(function() {
-                        dfd.reject.apply(this, arguments);
-                    });
+                var previousContext = self.cachedPages[newUrl];
+
+                if (previousContext) {
+                    dfd.resolve(previousContext);
+                } else {
+                    activate(self)
+                        .then(function(activatedContext) {
+                            dfd.resolve(activatedContext);
+                        })
+                        .fail(function() {
+                            dfd.reject.apply(this, arguments);
+                        });
+                }
             } else {
                 dfd.reject('404');
             }
