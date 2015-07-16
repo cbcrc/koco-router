@@ -96,6 +96,12 @@ define(['jquery', 'lodash'],
                 return;
             }
 
+            var ignore = $element.attr('data-router-ignore');
+
+            if(ignore){
+                return;
+            }
+
             var url = $element.attr('href');
 
             //TODO: permettre un regex (ou autre) en config pour savoir si c'est un lien interne
