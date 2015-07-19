@@ -1,8 +1,8 @@
 // Copyright (c) CBC/Radio-Canada. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-define(['koco-query'],
-    function(Query) {
+define([],
+    function() {
         'use strict';
 
         var Route = function(url, matchedRoute, page) {
