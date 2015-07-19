@@ -1,11 +1,20 @@
 {
   "name": "koco-router",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "authors": [
     "Maxime Séguin"
   ],
-  "description": "A simple router for Knockout.",
-  "main": "dist/router.js",
+  "description": "A full-fledged router for Knockout.",
+  "main": [
+    "src/router.js"
+  ],
+  "keywords":[
+    "koco",
+    "koco-router",
+    "knockout",
+    "components"
+  ],
+  "private": false,
   "moduleType": [
     "amd"
   ],
