@@ -48,10 +48,14 @@ define(['lodash', 'jquery'],
             });
         }
 
-        RouterEvent.prototype.unsubscribe = function(handler) {
+        RouterEvent.prototype.unsubscribe = function(handler, context) {
             var self = this;
+            var unsubArgs = arguments;
 
             _.remove(self.subscribers, function(subscriber) {
+                if (unsubArgs.length === 2) {
+                    return subscriber.context === context && subscriber.handler === handler;
+                }
                 return subscriber.handler === handler;
             });
         };
