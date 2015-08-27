@@ -154,7 +154,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
         //Cette méthode peut être overriden au besoin par le end user
         Router.prototype.fail = function() {
-            var self = this;
+            //var self = this;
             alert('404 - Please override the router.fail function to handle routing failure.');
         };
 
@@ -217,8 +217,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
                 self._internalNavigatingTask = {
                     dfd: new $.Deferred(),
-                    options: options,
-                    context: new Context()
+                    options: options
                 };
 
                 self._internalNavigatingTask.dfd
@@ -261,26 +260,84 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         }
                     });
 
-                if (byroads.getNumRoutes() === 0) {
-                    self._internalNavigatingTask.dfd.reject('No route has been added to the router yet.');
-                } else {
-                    self.navigating.canRoute().then(function(can) {
-                        if (can) {
-                            _navigateInner(self, url);
-                        } else {
-                            resetUrl(self);
-                            self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
-                        }
-                    }, function() {
-                        self._internalNavigatingTask.dfd.reject.apply(this, arguments);
-                    });
-                }
+                self.navigating.canRoute().then(function(can) {
+                    if (can) {
+                        self.isNavigating(true);
+                        self._navigateInner(url, self._internalNavigatingTask.dfd, self.isActivating);
+                    } else {
+                        resetUrl(self);
+                        self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
+                    }
+                }, function() {
+                    self._internalNavigatingTask.dfd.reject.apply(this, arguments);
+                });
             }, 0);
 
 
             //TODO: S'assurer que canRoute() === false, remet l'url précédente sur back/foward button
 
             return self._navigatingTask.promise();
+        };
+
+        Router.prototype._navigateInner = function(newUrl, dfd, isActivating, context) {
+            var self = this;
+
+            if (!context) {
+                context = new Context();
+            }
+
+            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+            var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
+
+            // Remove hash
+            cleanedUrl = cleanedUrl.replace(/#.*$/g, '');
+
+            if (byroads.getNumRoutes() === 0) {
+                dfd.reject('No route has been added to the router yet.');
+                return;
+            }
+
+            var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
+            var matchedRoute = null;
+
+            if (matchedRoutes.length > 0) {
+                matchedRoute = self.getPrioritizedRoute(convertMatchedRoutes(self, matchedRoutes, newUrl), newUrl);
+
+                context.addMatchedRoute(matchedRoute);
+            }
+
+            var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
+
+            if (guardRouteResult === false) {
+                dfd.reject('guardRoute has blocked navigation.');
+                return;
+            } else if (guardRouteResult === true) {
+                //continue
+            } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
+                self._navigateInner(guardRouteResult, dfd, isActivating, context);
+                return;
+            } else {
+                dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
+                return;
+            }
+
+            if (matchedRoute) {
+                var previousContext = self.cachedPages[newUrl];
+
+                if (previousContext) {
+                    dfd.resolve(previousContext);
+                } else {
+                    activate(context, isActivating)
+                        .then(function(activatedContext) {
+                            dfd.resolve(activatedContext);
+                        })
+                        .fail(function() {
+                            dfd.reject.apply(this, arguments);
+                        });
+                }
+            } else {
+                dfd.reject('404');
+            }
         };
 
         function toPushStateOptions(self, context, options) {
@@ -311,81 +368,31 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
         }
 
-        function _navigateInner(self, newUrl) {
-            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-            var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
-
-            // Remove hash
-            cleanedUrl = cleanedUrl.replace(/#.*$/g, '');
-
-            var dfd = self._internalNavigatingTask.dfd;
-            self.isNavigating(true);
-            var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
-            var matchedRoute = null;
-
-            if (matchedRoutes.length > 0) {
-                matchedRoute = self.getPrioritizedRoute(convertMatchedRoutes(self, matchedRoutes, newUrl), newUrl);
-
-                self._internalNavigatingTask.context.addMatchedRoute(matchedRoute);
-            }
-
-            var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
-
-            if (guardRouteResult === false) {
-                dfd.reject('guardRoute has blocked navigation.');
-                return;
-            } else if (guardRouteResult === true) {
-                //continue
-            } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
-                _navigateInner(self, guardRouteResult);
-                return;
-            } else {
-                dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
-                return;
-            }
-
-            if (matchedRoute) {
-                var previousContext = self.cachedPages[newUrl];
-
-                if (previousContext) {
-                    dfd.resolve(previousContext);
-                } else {
-                    activate(self)
-                        .then(function(activatedContext) {
-                            dfd.resolve(activatedContext);
-                        })
-                        .fail(function() {
-                            dfd.reject.apply(this, arguments);
-                        });
-                }
-            } else {
-                dfd.reject('404');
-            }
-        }
-
-        function activate(self) {
+        function activate(context, isActivating) {
             return new $.Deferred(function(dfd) {
                 try {
-                    var registeredPage = self._internalNavigatingTask.context.route.page;
+                    var registeredPage = context.route.page;
 
                     if (registeredPage.withActivator) {
                         getWithRequire(registeredPage.activatorPath || (registeredPage.require + '-activator'), function(activator) {
                             if (_.isFunction(activator)) {
-                                activator = new activator(self._internalNavigatingTask.context);
+                                activator = new activator(context);
                             }
 
-                            self.isActivating(true);
+                            if (isActivating) {
+                                isActivating(true);
+                            }
 
-                            activator.activate(self._internalNavigatingTask.context)
+                            activator.activate(context)
                                 .then(function() {
-                                    dfd.resolve(self._internalNavigatingTask.context);
+                                    dfd.resolve(context);
                                 })
                                 .fail(function(reason) {
                                     dfd.reject(reason);
                                 });
                         });
                     } else {
-                        dfd.resolve(self._internalNavigatingTask.context);
+                        dfd.resolve(context);
                     }
                 } catch (err) {
                     dfd.reject(err);
