@@ -14,6 +14,9 @@ define(['jquery', 'lodash'],
         var RouterStatePush = function(router) {
             var self = this;
 
+            //http://stackoverflow.com/questions/8980255/how-do-i-retrieve-if-the-popstate-event-comes-from-back-or-forward-actions-with
+            self.stateId = 0;
+
             self.router = router;
 
             //TODO: Pas besoin de debounce étant donné que le router annule automatiquement les requêtes précédentes... pas certain du résultat --> à valider
@@ -26,19 +29,36 @@ define(['jquery', 'lodash'],
                         });*/
 
             //TODO: Pas besoin de debounce étant donné que le router annule automatiquement les requêtes précédentes... pas certain du résultat --> à valider
-            self.backOrFowardDebounced = /*_.debounce(*/ function() {
-                //même dans le cas où on fait back, il se peut que, dû au pipeline du router, l'url ne
-                //soit pas celle du back (a cause de guardRoute par exemple)
-                //il faut donc faire un replace du state à la fin pour être certain d'avoir la bonne url
-                self.router.navigate(getRelativeUrlFromLocation(self), {
-                    replace: true,
-                    stateChanged: true
-                });
+            self.backOrFowardDebounced = /*_.debounce(*/ function(state) {
+                var direction;
+
+                if (state.id < self.stateId) {
+                    self.stateId--;
+                    direction = 'back';
+                } else {
+                    direction = 'forward';
+                    self.stateId++;
+                }
+
+                return self.backOrFoward(state, direction);
             };
             /*, 500, {
                             'leading': true,
                             'trailing': true
                         });*/
+        };
+
+        RouterStatePush.prototype.backOrFoward = function(state) {
+            var self = this;
+
+            //même dans le cas où on fait back, il se peut que, dû au pipeline du router, l'url ne
+            //soit pas celle du back (a cause de guardRoute par exemple)
+            //il faut donc faire un replace du state à la fin pour être certain d'avoir la bonne url
+            return self.router.navigate(getRelativeUrlFromLocation(self), {
+                replace: true,
+                stateChanged: true,
+                force: true
+            });
         };
 
         RouterStatePush.prototype.init = function() {
@@ -66,7 +86,7 @@ define(['jquery', 'lodash'],
         };
 
         RouterStatePush.prototype.pushState = function(options) {
-            //var self = this;
+            var self = this;
 
             var defaultOptions = {
                 url: '',
@@ -77,16 +97,22 @@ define(['jquery', 'lodash'],
 
             options = $.extend(defaultOptions, options || {});
 
+            options.stateObject.url = options.url;
+            options.stateObject.pageTitle = options.pageTitle;
+
             if (options.replace) {
+                options.stateObject.id = self.stateId;
                 window.history.replaceState(options.stateObject, options.pageTitle, options.url);
             } else {
+                options.stateObject.id = ++self.stateId;
                 window.history.pushState(options.stateObject, options.pageTitle, options.url);
             }
         };
 
         function backAndFowardButtonHandler(self, e) {
+            //why this if???
             if (e.originalEvent.state !== null) {
-                self.backOrFowardDebounced();
+                self.backOrFowardDebounced(e.originalEvent.state);
             }
         }
 
@@ -98,7 +124,7 @@ define(['jquery', 'lodash'],
 
             var ignore = $element.attr('data-router-ignore');
 
-            if(ignore){
+            if (ignore) {
                 return;
             }
 
@@ -114,7 +140,8 @@ define(['jquery', 'lodash'],
             if (_.startsWith(url.toLowerCase(), self.router.settings.baseUrl.toLowerCase())) {
                 e.preventDefault();
 
-                var currentUrl = window.location.pathname + window.location.search;
+                var currentUrl = self.router.currentUrl();
+
                 if (url !== currentUrl) {
                     self.setUrlDebounced(url);
                 }
@@ -122,7 +149,7 @@ define(['jquery', 'lodash'],
         }
 
         function getRelativeUrlFromLocation(self) {
-            return cleanUrl(self, window.location.pathname + window.location.search + window.location.hash);
+            return cleanUrl(self, self.router.currentUrl());
         }
 
         function cleanUrl(self, url) {

@@ -189,6 +189,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         Router.prototype.navigate = function(url, options) {
             var self = this;
 
+
+
             //so on était déjà en train de naviguer on hijack la premiere navigation (récupère le dfd) et on kill le internalDefered
 
             if (self._internalNavigatingTask && self._internalNavigatingTask.dfd && self._internalNavigatingTask.dfd.state() === 'pending') {
@@ -196,6 +198,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             } else {
                 self._navigatingTask = new $.Deferred();
             }
+
 
 
             // return new $.Deferred(function(dfd) {
@@ -208,9 +211,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
 
             setTimeout(function() {
+
+
                 var defaultOptions = {
                     replace: false,
-                    stateChanged: false
+                    stateChanged: false,
+                    force: false
                 };
 
                 options = $.extend(defaultOptions, options || {});
@@ -232,6 +238,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                                 self.cachedPages[previousContext.route.url] = previousContext;
                             }
 
+                            context.isDialog = false;
                             self.context(context);
                             self.setPageTitle(context.pageTitle);
                         }
@@ -240,7 +247,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         self._navigatingTask = null;
                         self._internalNavigatingTask = null;
                         self.isNavigating(false);
-                        self.isActivating(false);
                     })
                     .fail(function(reason) {
                         if (reason !== 'navigation hijacked') {
@@ -250,7 +256,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                             self._navigatingTask = null;
                             self._internalNavigatingTask = null;
                             self.isNavigating(false);
-                            self.isActivating(false);
 
                             if (reason == '404') {
                                 //covention pour les 404
@@ -260,17 +265,23 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         }
                     });
 
-                self.navigating.canRoute().then(function(can) {
-                    if (can) {
-                        self.isNavigating(true);
-                        self._navigateInner(url, self._internalNavigatingTask.dfd, self.isActivating);
-                    } else {
-                        resetUrl(self);
-                        self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
-                    }
-                }, function() {
-                    self._internalNavigatingTask.dfd.reject.apply(this, arguments);
-                });
+                if (options.force) {
+                    self.isNavigating(true);
+                    self._navigateInner(url, self._internalNavigatingTask.dfd, options);
+                } else {
+                    self.navigating.canRoute().then(function(can) {
+                        if (can) {
+                            self.isNavigating(true);
+                            self._navigateInner(url, self._internalNavigatingTask.dfd, options);
+                        } else {
+                            resetUrl(self);
+                            self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
+                        }
+                    }, function() {
+                        self._internalNavigatingTask.dfd.reject.apply(this, arguments);
+                    });
+                }
+
             }, 0);
 
 
@@ -279,8 +290,15 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             return self._navigatingTask.promise();
         };
 
-        Router.prototype._navigateInner = function(newUrl, dfd, isActivating, context) {
+        Router.prototype._navigateInner = function(newUrl, dfd, options, context) {
             var self = this;
+
+
+            var defaultOptions = {
+                force: false
+            };
+
+            options = $.extend(defaultOptions, options || {});
 
             if (!context) {
                 context = new Context();
@@ -306,7 +324,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 context.addMatchedRoute(matchedRoute);
             }
 
-            var guardRouteResult = self.guardRoute(matchedRoute, newUrl);
+            var guardRouteResult = true;
+            if (!options.force) {
+                guardRouteResult = self.guardRoute(matchedRoute, newUrl);
+            }
 
             if (guardRouteResult === false) {
                 dfd.reject('guardRoute has blocked navigation.');
@@ -314,7 +335,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             } else if (guardRouteResult === true) {
                 //continue
             } else if (typeof guardRouteResult === 'string' || guardRouteResult instanceof String) {
-                self._navigateInner(guardRouteResult, dfd, isActivating, context);
+                self._navigateInner(guardRouteResult, dfd, options, context);
                 return;
             } else {
                 dfd.reject('guardRoute has returned an invalid value. Only string or boolean are supported.');
@@ -327,7 +348,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 if (previousContext) {
                     dfd.resolve(previousContext);
                 } else {
-                    activate(context, isActivating)
+                    activate(self, context)
                         .then(function(activatedContext) {
                             dfd.resolve(activatedContext);
                         })
@@ -338,6 +359,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             } else {
                 dfd.reject('404');
             }
+        };
+
+        Router.prototype.currentUrl = function() {
+            //var self = this;
+
+            return window.location.pathname + window.location.search + window.location.hash;
         };
 
         function toPushStateOptions(self, context, options) {
@@ -368,7 +395,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
         }
 
-        function activate(context, isActivating) {
+        function activate(self, context) {
             return new $.Deferred(function(dfd) {
                 try {
                     var registeredPage = context.route.page;
@@ -379,9 +406,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                                 activator = new activator(context);
                             }
 
-                            if (isActivating) {
-                                isActivating(true);
-                            }
+
+                            self.isActivating(true);
+
 
                             activator.activate(context)
                                 .then(function() {
@@ -389,6 +416,9 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                                 })
                                 .fail(function(reason) {
                                     dfd.reject(reason);
+                                })
+                                .always(function() {
+                                    self.isActivating(false);
                                 });
                         });
                     } else {
