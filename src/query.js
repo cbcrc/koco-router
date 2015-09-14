@@ -6,7 +6,7 @@ define(['jquery'],
     function($) {
         'use strict';
 
-        var Query = function(url) {
+        var Query = function(url, coerce) {
             var self = this;
             var xUrl = url || '';
 
@@ -19,7 +19,7 @@ define(['jquery'],
             }
 
             if (self.__query) {
-                $.extend(self, jQueryDeparam(self.__query));
+                $.extend(self, jQueryDeparam(self.__query, coerce));
             }
         };
 

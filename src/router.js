@@ -102,9 +102,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var pageName = pattern;
             var pageTitle = '';
             var cached = false;
+            var coerceQuery = false;
 
             if (routeConfig.hasOwnProperty('cached') && typeof routeConfig.cached === 'boolean') {
                 cached = routeConfig.cached;
+            }
+
+            if (routeConfig.hasOwnProperty('coerceQuery') && typeof routeConfig.coerceQuery === 'boolean') {
+                coerceQuery = routeConfig.coerceQuery;
             }
 
             if (routeConfig.hasOwnProperty('pageTitle') &&
@@ -141,6 +146,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             route.pageName = pageName;
             route.pageTitle = pageTitle;
             route.cached = cached;
+            route.coerceQuery = coerceQuery;
         };
 
         //Cette méthode peut être overriden au besoin par le end user
@@ -435,7 +441,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             for (var i = 0; i < matchedRoutes.length; i++) {
                 var matchedRoute = matchedRoutes[i];
                 var page = self._getRegisteredPage(matchedRoute.route.pageName);
-                var route = new Route(url, matchedRoute, page);
+                var route = new Route(url, matchedRoute, page, matchedRoute.route.coerceQuery);
                 result.push(route);
             }
 
