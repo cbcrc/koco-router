@@ -29,7 +29,7 @@ define(['jquery', 'lodash'],
                         });*/
 
             //TODO: Pas besoin de debounce étant donné que le router annule automatiquement les requêtes précédentes... pas certain du résultat --> à valider
-            self.backOrFowardDebounced = /*_.debounce(*/ function(state) {
+            self.backOrForwardDebounced = /*_.debounce(*/ function(state) {
                 var direction;
 
                 if (state.id < self.stateId) {
@@ -40,7 +40,7 @@ define(['jquery', 'lodash'],
                     self.stateId++;
                 }
 
-                return self.backOrFoward(state, direction);
+                return self.backOrForward(state, direction);
             };
             /*, 500, {
                             'leading': true,
@@ -48,7 +48,7 @@ define(['jquery', 'lodash'],
                         });*/
         };
 
-        RouterStatePush.prototype.backOrFoward = function(state) {
+        RouterStatePush.prototype.backOrForward = function(state) {
             var self = this;
 
             //même dans le cas où on fait back, il se peut que, dû au pipeline du router, l'url ne
@@ -66,9 +66,9 @@ define(['jquery', 'lodash'],
 
             //prevent bug with safari (popstate is fired on page load with safari)
             $(document).ready(function() {
-                //back and foward button support
+                //back and forward button support
                 $(window).on('popstate', function(e) {
-                    backAndFowardButtonHandler(self, e);
+                    backAndForwardButtonHandler(self, e);
                 });
 
             });
@@ -109,10 +109,10 @@ define(['jquery', 'lodash'],
             }
         };
 
-        function backAndFowardButtonHandler(self, e) {
+        function backAndForwardButtonHandler(self, e) {
             //why this if???
             if (e.originalEvent.state !== null) {
-                self.backOrFowardDebounced(e.originalEvent.state);
+                self.backOrForwardDebounced(e.originalEvent.state);
             }
         }
 

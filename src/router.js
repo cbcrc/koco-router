@@ -190,7 +190,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             self.routerState.pushState(options);
         };
 
-        //stateChanged option - for back and foward buttons (and onbeforeunload eventually)
+        //stateChanged option - for back and forward buttons (and onbeforeunload eventually)
         //Dans le cas du back or forward button, l'url doit etre remise sur la stack dans resetUrl
         Router.prototype.navigate = function(url, options) {
             var self = this;
@@ -291,7 +291,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }, 0);
 
 
-            //TODO: S'assurer que canRoute() === false, remet l'url précédente sur back/foward button
+            //TODO: S'assurer que canRoute() === false, remet l'url précédente sur back/forward button
 
             return self._navigatingTask.promise();
         };
