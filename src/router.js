@@ -102,6 +102,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var pageName = pattern;
             var pageTitle = '';
             var cached = false;
+            var rules = {};
 
             if (routeConfig.hasOwnProperty('cached') && typeof routeConfig.cached === 'boolean') {
                 cached = routeConfig.cached;
@@ -123,6 +124,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 pageName = routeConfig.pageName;
             }
 
+            if (routeConfig.hasOwnProperty('rules') && (typeof routeConfig.rules === 'object' || routeConfig.rules instanceof Object)) {
+                rules = routeConfig.rules;
+            }
+
             if (!self.isRegisteredPage(pageName)) {
                 throw new Error('Router.addRoute - The page \'' + pageName + '\' is not registered. Please register the page before adding a route that refers to it.');
             }
@@ -141,6 +146,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             route.pageName = pageName;
             route.pageTitle = pageTitle;
             route.cached = cached;
+            route.rules = rules;
         };
 
         //Cette méthode peut être overriden au besoin par le end user
