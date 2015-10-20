@@ -56,8 +56,8 @@ define(['jquery', 'lodash'],
             //il faut donc faire un replace du state à la fin pour être certain d'avoir la bonne url
             return self.router.navigate(getRelativeUrlFromLocation(self), {
                 replace: true,
-                stateChanged: true,
-                force: true
+                stateChanged: true/*,
+                force: true*/
             });
         };
 
