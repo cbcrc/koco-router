@@ -188,6 +188,13 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             var self = this;
 
             self.routerState.pushState(options);
+
+            var context = self.context();
+
+            if(context && context.route)
+            {
+                context.route.url = options.url;
+            }
         };
 
         //stateChanged option - for back and forward buttons (and onbeforeunload eventually)
