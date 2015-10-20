@@ -282,7 +282,7 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     self.isNavigating(true);
                     self._navigateInner(url, self._internalNavigatingTask.dfd, options);
                 } else {
-                    self.navigating.canRoute().then(function(can) {
+                    self.navigating.canRoute(options).then(function(can) {
                         if (can) {
                             self.isNavigating(true);
                             self._navigateInner(url, self._internalNavigatingTask.dfd, options);

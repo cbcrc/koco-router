@@ -20,20 +20,20 @@ define(['lodash', 'jquery'],
             });
         };
 
-        RouterEvent.prototype.canRoute = function() {
+        RouterEvent.prototype.canRoute = function(options) {
             var self = this;
 
-            return checkSubscriber(self.subscribers, 0);
+            return checkSubscriber(self.subscribers, options, 0);
         };
 
-        function checkSubscriber(subscribers, index) {
+        function checkSubscriber(subscribers, options, index) {
             // No more subscribers to check
             if (index >= subscribers.length) {
                 return $.Deferred().resolve(true).promise();
             }
 
             var subscriber = subscribers[index];
-            var handlerResult = subscriber.handler.call(subscriber.context);
+            var handlerResult = subscriber.handler.call(subscriber.context, options);
 
             if (!handlerResult) {
                 return $.Deferred().resolve(false).promise();
@@ -44,7 +44,7 @@ define(['lodash', 'jquery'],
                     return false;
                 }
 
-                return checkSubscriber(subscribers, index + 1);
+                return checkSubscriber(subscribers, options, index + 1);
             });
         }
 
