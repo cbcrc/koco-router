@@ -193,7 +193,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             if(context && context.route)
             {
-                context.route.url = options.url;
+                var matchedRoute = updateRoute(self, options.url, context);
+
+                if (!matchedRoute) {
+                    throw new Error('No route found for URL ' + options.url);
+                }
             }
         };
 
@@ -316,25 +320,12 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 context = new Context();
             }
 
-            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
-            var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
-
-            // Remove hash
-            cleanedUrl = cleanedUrl.replace(/#.*$/g, '');
-
             if (byroads.getNumRoutes() === 0) {
                 dfd.reject('No route has been added to the router yet.');
                 return;
             }
 
-            var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
-            var matchedRoute = null;
-
-            if (matchedRoutes.length > 0) {
-                matchedRoute = self.getPrioritizedRoute(convertMatchedRoutes(self, matchedRoutes, newUrl), newUrl);
-
-                context.addMatchedRoute(matchedRoute);
-            }
+            var matchedRoute = updateRoute(self, newUrl, context);
 
             var guardRouteResult = true;
             if (!options.force) {
@@ -378,6 +369,25 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             return window.location.pathname + window.location.search + window.location.hash;
         };
+
+        function updateRoute(self, newUrl, context) {
+            //Replace all (/.../g) leading slash (^\/) or (|) trailing slash (\/$) with an empty string.
+            var cleanedUrl = newUrl.replace(/^\/|\/$/g, '');
+
+            // Remove hash
+            cleanedUrl = cleanedUrl.replace(/#.*$/g, '');
+
+            var matchedRoutes = byroads.getMatchedRoutes(cleanedUrl, true);
+            var matchedRoute = null;
+
+            if (matchedRoutes.length > 0) {
+                matchedRoute = self.getPrioritizedRoute(convertMatchedRoutes(self, matchedRoutes, newUrl), newUrl);
+
+                context.addMatchedRoute(matchedRoute);
+            }
+
+            return matchedRoute;
+        }
 
         function toPushStateOptions(self, context, options) {
             if (!context) {
