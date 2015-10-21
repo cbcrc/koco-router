@@ -287,7 +287,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                             self.isNavigating(true);
                             self._navigateInner(url, self._internalNavigatingTask.dfd, options);
                         } else {
-                            resetUrl(self);
                             self._internalNavigatingTask.dfd.reject('routing cancelled by router.navigating.canRoute');
                         }
                     }, function() {
