@@ -1,6 +1,6 @@
 <!-- Copyright (c) CBC/Radio-Canada. All rights reserved.
 Licensed under the MIT license. See LICENSE file in the project root for full license information. -->
 
-<!-- ko if: router.context -->
-<div data-bind="component: { name: router.context().route.page.componentName, params: router.context() }"></div>
+<!-- ko if: router.viewModel -->
+<div data-bind="component: { name: router.viewModel().route.page.componentName, params: router.viewModel() }"></div>
 <!-- /ko -->

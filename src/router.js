@@ -1,10 +1,10 @@
 // Copyright (c) CBC/Radio-Canada. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router-state', './router-event',
+define(['jquery', 'knockout', 'lodash', 'byroads', 'router-state', './router-event',
         './context', './route'
     ],
-    function($, koUtilities, ko, _, byroads, RouterState, RouterEvent, Context, Route) {
+    function($, ko, _, byroads, RouterState, RouterEvent, Context, Route) {
         'use strict';
 
         function Router() {
@@ -12,11 +12,11 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             //TODO: Créer une instance de byroads au lieu d'utiliser la static...
 
-            koUtilities.registerComponent('router', {
-                basePath: 'bower_components/koco-router/src'
+            ko.components.register('router', {
+                isBower: true
             });
 
-            self.context = ko.observable(null);
+            self.viewModel = ko.observable(null);
 
             self._pages = {};
 
@@ -61,26 +61,26 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             }
 
             var page = {
-                withActivator: false,
-                activatorPath: '',
                 name: name,
                 title: pageConfig.title || ''
             };
 
-            if (pageConfig.hasOwnProperty('withActivator') && typeof pageConfig.withActivator === 'boolean') {
-                page.withActivator = pageConfig.withActivator;
-            }
-
-            if (pageConfig.hasOwnProperty('activatorPath') && typeof pageConfig.activatorPath === 'string') {
-                page.activatorPath = pageConfig.activatorPath;
-            }
-
             var componentConfig = buildComponentConfigFromPageConfig(name, pageConfig);
 
-            var koConfig = koUtilities.registerComponent(componentConfig.name, componentConfig);
+            ko.components.register(componentConfig.name, componentConfig);
 
             page.componentName = componentConfig.name;
-            page.require = koConfig.require;
+
+            if (componentConfig.htmlOnly !== true) {
+                var basePath = componentConfig.basePath || 'components/' + name;
+
+                if (componentConfig.isBower) {
+                    basePath = 'bower_components/koco-' + name + '/src';
+                }
+
+                var requirePath = basePath + '/' + componentConfig.name + '-ui';
+                page.require = requirePath;
+            }
 
             this._pages[name] = page;
         };
@@ -189,11 +189,10 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
 
             self.routerState.pushState(options);
 
-            var context = self.context();
+            var viewModel = self.viewModel();
 
-            if(context && context.route)
-            {
-                var matchedRoute = updateRoute(self, options.url, context);
+            if (viewModel && viewModel.route) {
+                var matchedRoute = updateRoute(self, options.url, viewModel);
 
                 if (!matchedRoute) {
                     throw new Error('No route found for URL ' + options.url);
@@ -206,30 +205,14 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
         Router.prototype.navigate = function(url, options) {
             var self = this;
 
-
-
             //so on était déjà en train de naviguer on hijack la premiere navigation (récupère le dfd) et on kill le internalDefered
-
             if (self._internalNavigatingTask && self._internalNavigatingTask.dfd && self._internalNavigatingTask.dfd.state() === 'pending') {
                 self._internalNavigatingTask.dfd.reject('navigation hijacked');
             } else {
                 self._navigatingTask = new $.Deferred();
             }
 
-
-
-            // return new $.Deferred(function(dfd) {
-            //     try {
-
-            //     } catch (err) {
-            //         dfd.reject(err);
-            //     }
-            // }).promise();
-
-
             setTimeout(function() {
-
-
                 var defaultOptions = {
                     replace: false,
                     stateChanged: false,
@@ -244,26 +227,29 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 };
 
                 self._internalNavigatingTask.dfd
-                    .done(function(context) {
-                        if (context) {
-                            var pushStateOptions = toPushStateOptions(self, context, self._internalNavigatingTask.options);
+                    .done(function(viewModel) {
+                        if (viewModel) {
+                            var pushStateOptions = toPushStateOptions(self, viewModel, self._internalNavigatingTask.options);
                             self.routerState.pushState(pushStateOptions);
 
-                            var previousContext = self.context();
+                            var previousContext = self.viewModel();
 
                             if (previousContext && previousContext.route.cached) {
                                 self.cachedPages[previousContext.route.url] = previousContext;
                             }
 
-                            context.isDialog = false;
-                            self.context(context);
-                            self.setPageTitle(context.pageTitle);
+                            viewModel.isDialog = false;
+                            self.viewModel(viewModel);
+                            self.setPageTitle(viewModel.pageTitle);
                         }
 
-                        self._navigatingTask.resolve.apply(this, arguments);
-                        self._navigatingTask = null;
-                        self._internalNavigatingTask = null;
-                        self.isNavigating(false);
+                        postActivate(self).always(function() {
+                            self._navigatingTask.resolve.apply(this, arguments);
+                            self._navigatingTask = null;
+                            self._internalNavigatingTask = null;
+                            self.isActivating(false);
+                            self.isNavigating(false);
+                        });
                     })
                     .fail(function(reason) {
                         if (reason !== 'navigation hijacked') {
@@ -297,7 +283,6 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                         self._internalNavigatingTask.dfd.reject.apply(this, arguments);
                     });
                 }
-
             }, 0);
 
 
@@ -352,8 +337,8 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                     dfd.resolve(previousContext);
                 } else {
                     activate(self, context)
-                        .then(function(activatedContext) {
-                            dfd.resolve(activatedContext);
+                        .then(function(viewModel) {
+                            dfd.resolve(viewModel);
                         })
                         .fail(function() {
                             dfd.reject.apply(this, arguments);
@@ -389,28 +374,28 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
             return matchedRoute;
         }
 
-        function toPushStateOptions(self, context, options) {
-            if (!context) {
-                throw new Error('router.toPushStateOptions - context is mandatory');
+        function toPushStateOptions(self, viewModel, options) {
+            if (!viewModel) {
+                throw new Error('router.toPushStateOptions - viewModel is mandatory');
             }
 
-            if (!context.route) {
-                throw new Error('router.toPushStateOptions - context.route is mandatory');
+            if (!viewModel.route) {
+                throw new Error('router.toPushStateOptions - viewModel.route is mandatory');
             }
 
             return {
-                url: context.route.url,
-                pageTitle: context.pageTitle,
+                url: viewModel.route.url,
+                pageTitle: viewModel.pageTitle,
                 stateObject: options.stateObject || {},
                 replace: options.replace || false
             };
         }
 
         function resetUrl(self) {
-            var context = self.context();
+            var viewModel = self.viewModel();
 
-            if (context) {
-                var pushStateOptions = toPushStateOptions(self, context, {
+            if (viewModel) {
+                var pushStateOptions = toPushStateOptions(self, viewModel, {
                     replace: !self._internalNavigatingTask.options.stateChanged
                 });
                 self.routerState.pushState(pushStateOptions);
@@ -422,29 +407,58 @@ define(['jquery', 'knockout-utilities', 'knockout', 'lodash', 'byroads', 'router
                 try {
                     var registeredPage = context.route.page;
 
-                    if (registeredPage.withActivator) {
-                        getWithRequire(registeredPage.activatorPath || (registeredPage.require + '-activator'), function(activator) {
-                            if (_.isFunction(activator)) {
-                                activator = new activator(context);
+                    if (registeredPage.require) {
+                        getWithRequire(registeredPage.require, function(viewModel) {
+                            //todo: si viewModel == null, throw
+
+                            if (_.isFunction(viewModel)) {
+                                viewModel = new viewModel(context);
                             }
 
+                            for (var key in context) {
+                                if (context.hasOwnProperty(key))
+                                    viewModel[key] = context[key];
+                            }
 
-                            self.isActivating(true);
+                            if (viewModel.activate) /* based on convention */ {
+                                self.isActivating(true);
 
-
-                            activator.activate(context)
-                                .then(function() {
-                                    dfd.resolve(context);
-                                })
-                                .fail(function(reason) {
-                                    dfd.reject(reason);
-                                })
-                                .always(function() {
-                                    self.isActivating(false);
-                                });
+                                viewModel.activate()
+                                    .then(function() {
+                                        dfd.resolve(viewModel);
+                                    })
+                                    .fail(function(reason) {
+                                        dfd.reject(reason);
+                                    });
+                            } else {
+                                dfd.resolve(viewModel);
+                            }
                         });
                     } else {
+                        //htmlOnly
                         dfd.resolve(context);
+                    }
+                } catch (err) {
+                    dfd.reject(err);
+                }
+            }).promise();
+        }
+
+        function postActivate(self) {
+            return new $.Deferred(function(dfd) {
+                try {
+                    var viewModel = self.viewModel();
+
+                    if (viewModel.postActivate) {
+                        viewModel.postActivate()
+                            .then(function() {
+                                dfd.resolve(viewModel);
+                            })
+                            .fail(function(reason) {
+                                dfd.reject(reason);
+                            });
+                    } else {
+                        dfd.resolve(viewModel);
                     }
                 } catch (err) {
                     dfd.reject(err);

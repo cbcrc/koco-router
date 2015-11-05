@@ -1,6 +1,6 @@
 {
   "name": "koco-router",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "authors": [
     "Maxime Séguin"
   ],
@@ -33,7 +33,6 @@
     "byroads.js": "^0.1.0",
     "lodash": "^3.0.0",
     "requirejs": "^2.1.15",
-    "requirejs-text": "^2.0.13",
-    "koco-utilities": "^0.3.0"
+    "requirejs-text": "^2.0.13"
   }
 }
