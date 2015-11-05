@@ -497,6 +497,7 @@ define(['jquery', 'knockout', 'lodash', 'byroads', 'router-state', './router-eve
                 componentConfig.htmlOnly = pageConfig.htmlOnly;
                 componentConfig.basePath = pageConfig.basePath;
                 componentConfig.isBower = pageConfig.isBower;
+                componentConfig.template = pageConfig.template;
             }
 
             return componentConfig;
