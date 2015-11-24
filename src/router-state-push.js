@@ -21,7 +21,7 @@ define(['jquery', 'lodash'],
 
             //TODO: Pas besoin de debounce étant donné que le router annule automatiquement les requêtes précédentes... pas certain du résultat --> à valider
             self.setUrlDebounced = /*_.debounce(*/ function(url) {
-                self.router.navigate(cleanUrl(self, url));
+                self.router.navigate(url);
             };
             /*, 500, {
                             'leading': true,
@@ -48,16 +48,17 @@ define(['jquery', 'lodash'],
                         });*/
         };
 
-        RouterStatePush.prototype.backOrForward = function(state) {
+        RouterStatePush.prototype.backOrForward = function( /*state*/ ) {
             var self = this;
 
             //même dans le cas où on fait back, il se peut que, dû au pipeline du router, l'url ne
             //soit pas celle du back (a cause de guardRoute par exemple)
             //il faut donc faire un replace du state à la fin pour être certain d'avoir la bonne url
-            return self.router.navigate(getRelativeUrlFromLocation(self), {
+            return self.router.navigate(getRelativeUrl(self.router.currentUrl()), {
                 replace: true,
-                stateChanged: true/*,
-                force: true*/
+                stateChanged: true
+                    /*,
+                                    force: true*/
             });
         };
 
@@ -80,7 +81,7 @@ define(['jquery', 'lodash'],
 
             //l'url peut être changée à cause de guardRoute par exemple
             //il faut donc faire un replace du state à la fin pour être certain d'avoir la bonne url
-            return self.router.navigate(getRelativeUrlFromLocation(self), {
+            return self.router.navigate(getRelativeUrl(self.router.currentUrl()), {
                 replace: true
             });
         };
@@ -133,26 +134,41 @@ define(['jquery', 'lodash'],
             //TODO: permettre un regex (ou autre) en config pour savoir si c'est un lien interne
             //car avec ça les sous-domaines vont etre exclus
             //ce qui ne doit pas nécessairement etre le cas!
-            //var isRelativeUrl = url.indexOf(':') === -1;
+            var isRelativeUrl = url.indexOf(':') === -1;
             /*var isSameDomain = url.indexOf(document.domain) > -1;*/
 
             //if ( /*isSameDomain || */ isRelativeUrl) {
-            if (_.startsWith(url.toLowerCase(), self.router.settings.baseUrl.toLowerCase())) {
+
+            if (!isRelativeUrl && startsWithRootUrl(self, url)) {
+                url = getRelativeUrl(url);
+            }
+
+            url = makeRelativeUrlStartWithSlash(url);
+
+            if (shouldHandleNavigation(self, e, $element, url)) {
                 e.preventDefault();
 
-                var currentUrl = self.router.currentUrl();
+                // var currentUrl = self.router.currentUrl();
 
-                if (url !== currentUrl) {
-                    self.setUrlDebounced(url);
-                }
+                // if (url !== currentUrl) {
+                self.setUrlDebounced(url);
+                // }
             }
         }
 
-        function getRelativeUrlFromLocation(self) {
-            return cleanUrl(self, self.router.currentUrl());
+        function shouldHandleNavigation(self, e, $element, url) {
+            return _.startsWith(url.toLowerCase(), self.router.settings.baseUrl.toLowerCase());
         }
 
-        function cleanUrl(self, url) {
+        function startsWithRootUrl(self, url) {
+            return _.startsWith(url.toLowerCase(), (document.location.origin + self.router.settings.baseUrl).toLowerCase());
+        }
+
+        function getRelativeUrl(url) {
+            return '/' + url.replace(/^(?:\/\/|[^\/]+)*\//, '');
+        }
+
+        function makeRelativeUrlStartWithSlash(url) {
             var isRelativeUrl = url.indexOf(':') === -1;
 
             if (isRelativeUrl) {
