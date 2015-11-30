@@ -72,10 +72,10 @@ define(['jquery', 'knockout', 'lodash', 'byroads', 'router-state', './router-eve
             page.componentName = componentConfig.name;
 
             if (componentConfig.htmlOnly !== true) {
-                var basePath = componentConfig.basePath || 'components/' + name;
+                var basePath = componentConfig.basePath || 'components/' + name + '-page';
 
                 if (componentConfig.isBower) {
-                    basePath = 'bower_components/koco-' + name + '/src';
+                    basePath = 'bower_components/koco-' + name + '-page/src';
                 }
 
                 var requirePath = basePath + '/' + componentConfig.name + '-ui';
